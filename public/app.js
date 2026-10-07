@@ -723,7 +723,7 @@ async function initializeAuthFlow() {
     }
 
     updateNavUI();
-    showPage("home");
+    showPage("register");
 }
 
 

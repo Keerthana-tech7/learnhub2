@@ -662,35 +662,36 @@ function updateNavUI() {
 function showPage(pageId, options = {}) {
     const loggedIn = isUserLoggedIn();
 
-    // Protection rule: Upload and Admin require authentication
-    if (!loggedIn && PROTECTED_PAGES.includes(pageId)) {
-        showToast("Please log in to access this feature.");
-        pageId = "login";
+    // Logged-out users can only access Register and Login
+    if (!loggedIn && !["register", "login"].includes(pageId)) {
+        showToast("Please log in to access the study portal.");
+        pageId = "register";
     }
 
-    // Logged-in user trying to visit auth pages is kept on home
-    if (loggedIn && (pageId === "login" || pageId === "register")) {
+    // Logged-in users cannot return to Register or Login
+    if (loggedIn && ["register", "login"].includes(pageId)) {
         pageId = "home";
     }
 
-    const pages = document.querySelectorAll(".page");
-    pages.forEach(function(page) {
+    // Hide all pages
+    document.querySelectorAll(".page").forEach(function(page) {
         page.style.display = "none";
     });
 
+    // Display selected page
     const selectedPage = document.getElementById(pageId);
+
     if (selectedPage) {
         selectedPage.style.display = "block";
-        selectedPage.style.animation = "none";
-        selectedPage.offsetHeight; // trigger reflow for smooth re-animation
-        selectedPage.style.animation = "";
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    // Highlight active nav item
+    // Update navigation highlighting
     document.querySelectorAll("#main-nav a.nav-link").forEach(function(link) {
         link.classList.remove("active");
+
         const onclickAttr = link.getAttribute("onclick") || "";
+
         if (onclickAttr.includes(`'${pageId}'`)) {
             link.classList.add("active");
         }
@@ -698,7 +699,6 @@ function showPage(pageId, options = {}) {
 
     updateNavUI();
 }
-
 function handleLogoClick() {
     showPage("home");
 }
@@ -709,23 +709,26 @@ function handleDirectRegisterClick(e) {
 }
 
 async function initializeAuthFlow() {
-    // Check if user has an active session on the backend
     try {
         const response = await fetch("/api/session");
+
         if (response.ok) {
             const data = await response.json();
+
             if (data.loggedIn && data.user) {
                 setLoggedInUser(data.user);
+                updateNavUI();
+                showPage("home");
+                return;
             }
         }
-    } catch (err) {
-        // Running offline or static mode fallback
+    } catch (error) {
+        console.error("Session check failed:", error);
     }
 
     updateNavUI();
     showPage("register");
 }
-
 
 // ================= TOAST NOTIFICATION =================
 

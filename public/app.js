@@ -2268,7 +2268,8 @@ Questions:
 };
 
 
-function viewResource(subject) {
+function viewResource(subject) 
+{
     const resource = studyResources[subject];
 
     if (!resource) return;

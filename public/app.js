@@ -415,32 +415,3 @@ document.addEventListener('DOMContentLoaded', function () {
   window.showPage('register');
 });
 
-// Register submit flow
-const registerForm = document.getElementById('register-form');
-if (registerForm) {
-  registerForm.addEventListener('submit', function (event) {
-    event.preventDefault();
-
-    // keep the existing validation already in the form
-    // add only the required redirect logic
-    localStorage.setItem(AUTH_KEYS.registered, 'true');
-    localStorage.removeItem(AUTH_KEYS.loggedIn);
-
-    window.showPage('login');
-  });
-}
-
-// Login submit flow
-const loginForm = document.getElementById('login-form');
-if (loginForm) {
-  loginForm.addEventListener('submit', function (event) {
-    event.preventDefault();
-
-    // keep the existing validation already in the form
-    // add only the required redirect logic
-    localStorage.setItem(AUTH_KEYS.loggedIn, 'true');
-    localStorage.removeItem(AUTH_KEYS.registered);
-
-    window.showPage('home');
-  });
-}

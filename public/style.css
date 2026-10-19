@@ -2471,3 +2471,10 @@ transition: none;
     background: transparent;
     margin: 0;
 }
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+}

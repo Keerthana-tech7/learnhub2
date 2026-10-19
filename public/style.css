@@ -2074,3 +2074,282 @@ footer p {
         color: #0f172a !important;
     }
 }
+/* =========================================
+LEARNHUB PREMIUM REGISTER PAGE
+========================================= */
+
+.register-page {
+position: relative;
+isolation: isolate;
+overflow: hidden;
+padding: 64px 20px;
+background:
+radial-gradient(ellipse at 10% 10%, rgba(99, 102, 241, 0.13), transparent 42%),
+radial-gradient(ellipse at 90% 90%, rgba(14, 165, 233, 0.12), transparent 42%),
+var(--bg, #f5f7ff);
+}
+
+.register-page .auth-ambient-glow {
+pointer-events: none;
+filter: blur(5px);
+}
+
+.register-box {
+position: relative;
+z-index: 1;
+width: min(100%, 470px);
+padding: 38px;
+border: 1px solid rgba(148, 163, 184, 0.25);
+border-radius: 24px;
+background: rgba(255, 255, 255, 0.94);
+box-shadow: 0 24px 70px rgba(30, 41, 59, 0.12);
+backdrop-filter: blur(18px);
+}
+
+.register-brand {
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 7px;
+margin-bottom: 28px;
+text-align: center;
+}
+
+.register-brand .auth-header-icon {
+display: grid;
+place-items: center;
+width: 64px;
+height: 64px;
+margin-bottom: 5px;
+border-radius: 20px;
+background: linear-gradient(135deg, #6366f1, #0ea5e9);
+box-shadow: 0 10px 25px rgba(99, 102, 241, 0.25);
+font-size: 30px;
+}
+
+.register-brand-name {
+color: #3730a3;
+font-size: 25px;
+font-weight: 800;
+letter-spacing: -0.7px;
+}
+
+.register-brand-tagline {
+color: #64748b;
+font-size: 10px;
+font-weight: 700;
+letter-spacing: 1.6px;
+}
+
+.register-heading {
+margin-bottom: 25px;
+text-align: center;
+}
+
+.register-heading h1 {
+margin-bottom: 10px;
+color: #172033;
+font-size: clamp(25px, 5vw, 30px);
+font-weight: 800;
+letter-spacing: -0.8px;
+}
+
+.register-heading .page-subtitle {
+max-width: 340px;
+margin: 0 auto;
+color: #64748b;
+font-size: 14px;
+line-height: 1.7;
+}
+
+.register-box #register-message {
+margin-bottom: 16px;
+}
+
+.register-field {
+margin-bottom: 19px;
+}
+
+.register-field > label {
+display: block;
+margin-bottom: 8px;
+color: #334155;
+font-size: 13px;
+font-weight: 700;
+}
+
+.register-field input {
+box-sizing: border-box;
+width: 100%;
+min-height: 49px;
+padding: 13px 14px;
+border: 1px solid #dbe2ee;
+border-radius: 12px;
+outline: none;
+background: #f8faff;
+color: #172033;
+font: inherit;
+font-size: 14px;
+transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.register-field input::placeholder {
+color: #94a3b8;
+}
+
+.register-field input:focus {
+border-color: #6366f1;
+background: #fff;
+box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.register-field small {
+display: block;
+margin-top: 7px;
+color: #64748b;
+font-size: 11px;
+line-height: 1.5;
+}
+
+.password-input-wrap {
+position: relative;
+display: flex;
+align-items: center;
+}
+
+.password-input-wrap input {
+padding-right: 70px;
+}
+
+.password-toggle {
+position: absolute;
+right: 10px;
+padding: 7px 8px;
+border: none;
+border-radius: 7px;
+background: transparent;
+color: #4f46e5;
+font-size: 12px;
+font-weight: 700;
+cursor: pointer;
+}
+
+.password-toggle:hover {
+background: #eef2ff;
+}
+
+.password-strength-track {
+height: 5px;
+margin-top: 11px;
+overflow: hidden;
+border-radius: 10px;
+background: #e2e8f0;
+}
+
+.password-strength-bar {
+width: 0;
+height: 100%;
+border-radius: inherit;
+background: #94a3b8;
+transition: width 0.25s ease, background 0.25s ease;
+}
+
+.register-submit {
+display: flex;
+align-items: center;
+justify-content: space-between;
+width: 100%;
+min-height: 52px;
+margin-top: 8px;
+padding: 14px 18px;
+border: none;
+border-radius: 12px;
+background: linear-gradient(110deg, #4f46e5, #6366f1 55%, #0284c7);
+box-shadow: 0 9px 22px rgba(79, 70, 229, 0.22);
+color: #fff;
+font-size: 14px;
+font-weight: 750;
+cursor: pointer;
+transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.register-submit:hover {
+transform: translateY(-2px);
+box-shadow: 0 13px 28px rgba(79, 70, 229, 0.28);
+}
+
+.register-submit:active {
+transform: translateY(0);
+}
+
+.register-submit:disabled {
+opacity: 0.65;
+cursor: not-allowed;
+transform: none;
+}
+
+.register-terms {
+margin: 14px 0 0;
+color: #64748b;
+font-size: 11px;
+line-height: 1.6;
+text-align: center;
+}
+
+.register-box .auth-footer-help {
+margin-top: 25px;
+padding-top: 20px;
+border-top: 1px solid #e8edf5;
+text-align: center;
+}
+
+.register-box .auth-footer-help p {
+margin: 0;
+color: #64748b;
+font-size: 13px;
+}
+
+.register-box .auth-footer-help a {
+color: #4f46e5;
+font-weight: 750;
+text-decoration: none;
+}
+
+.register-box .auth-footer-help a:hover {
+text-decoration: underline;
+}
+
+.register-field input:focus-visible,
+.password-toggle:focus-visible,
+.register-submit:focus-visible {
+outline: 3px solid rgba(99, 102, 241, 0.35);
+outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+.register-page {
+padding: 35px 14px;
+}
+
+.register-box {
+    padding: 27px 20px;
+    border-radius: 20px;
+}
+
+.register-brand {
+    margin-bottom: 23px;
+}
+
+.register-heading h1 {
+    font-size: 25px;
+}
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+.register-field input,
+.password-strength-bar,
+.register-submit {
+transition: none;
+}
+}

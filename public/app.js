@@ -360,3 +360,87 @@ int main() {
                 <li>
                     <strong>Encapsulation:</strong> Bundling data (variables) and methods that operate on the data into a single unit (class) while restricting direct access using <code>private</
 ... (file continues unchanged)
+// --- Minimal auth flow setup ---
+const AUTH_KEYS = {
+  registered: 'learnhub_registered',
+  loggedIn: 'learnhub_logged_in'
+};
+
+function isLoggedIn() {
+  return localStorage.getItem(AUTH_KEYS.loggedIn) === 'true';
+}
+
+function protectNavigation(pageName) {
+  const protectedPages = ['upload', 'admin'];
+
+  if (protectedPages.includes(pageName) && !isLoggedIn()) {
+    pageName = 'login';
+  }
+
+  return pageName;
+}
+
+// Preserve the existing showPage logic but wrap it for auth flow
+const originalShowPage = window.showPage;
+
+window.showPage = function(pageName) {
+  const safePage = protectNavigation(pageName);
+
+  if (typeof originalShowPage === 'function') {
+    return originalShowPage(safePage);
+  }
+
+  const allPages = document.querySelectorAll('.page');
+  allPages.forEach(page => page.classList.remove('active'));
+
+  const target = document.getElementById(safePage);
+  if (target) target.classList.add('active');
+};
+
+// Default landing page
+document.addEventListener('DOMContentLoaded', function () {
+  const justRegistered = localStorage.getItem(AUTH_KEYS.registered) === 'true';
+  const loggedIn = isLoggedIn();
+
+  if (loggedIn) {
+    window.showPage('home');
+    return;
+  }
+
+  if (justRegistered) {
+    window.showPage('login');
+    return;
+  }
+
+  window.showPage('register');
+});
+
+// Register submit flow
+const registerForm = document.getElementById('register-form');
+if (registerForm) {
+  registerForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+
+    // keep the existing validation already in the form
+    // add only the required redirect logic
+    localStorage.setItem(AUTH_KEYS.registered, 'true');
+    localStorage.removeItem(AUTH_KEYS.loggedIn);
+
+    window.showPage('login');
+  });
+}
+
+// Login submit flow
+const loginForm = document.getElementById('login-form');
+if (loginForm) {
+  loginForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+
+    // keep the existing validation already in the form
+    // add only the required redirect logic
+    localStorage.setItem(AUTH_KEYS.loggedIn, 'true');
+    localStorage.removeItem(AUTH_KEYS.registered);
+
+    window.showPage('home');
+  });
+}

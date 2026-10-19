@@ -538,66 +538,135 @@
 
 
     <!-- ================= REGISTER ================= -->
-    <section id="register" class="page">
+<section id="register" class="page">
+    <div class="auth-wrapper register-page">
+    <div class="auth-ambient-glow auth-ambient-1"></div>
+    <div class="auth-ambient-glow auth-ambient-2"></div>
 
-        <div class="auth-wrapper">
-            <div class="auth-ambient-glow auth-ambient-1"></div>
-            <div class="auth-ambient-glow auth-ambient-2"></div>
+    <div class="auth-box register-box">
 
-            <div class="auth-box">
-                <div class="auth-header-icon">📝</div>
-                <h1>Create Student Account</h1>
-                <p class="page-subtitle">Join your classmates and access comprehensive study notes and learning tools.</p>
+        <div class="register-brand">
+            <div class="auth-header-icon">🎓</div>
+            <span class="register-brand-name">LearnHub</span>
+            <span class="register-brand-tagline">YOUR LEARNING JOURNEY STARTS HERE</span>
+        </div>
 
-                <div id="register-message" class="auth-message"></div>
+        <div class="register-heading">
+            <h1>Create Your Account</h1>
+            <p class="page-subtitle">
+                Learn smarter, explore resources, and grow your skills.
+            </p>
+        </div>
 
-                <form id="register-form">
+        <div id="register-message" class="auth-message" aria-live="polite"></div>
 
-                    <label for="register-name">Full Name</label>
-                    <input
-                        type="text"
-                        id="register-name"
-                        placeholder="Alex Johnson"
-                        required
-                        autocomplete="name"
-                    >
+        <form id="register-form">
 
-                    <label for="register-email">College / Personal Email</label>
-                    <input
-                        type="email"
-                        id="register-email"
-                        placeholder="alex@college.edu"
-                        required
-                        autocomplete="email"
-                    >
+            <div class="register-field">
+                <label for="register-name">Full Name</label>
+                <input
+                    type="text"
+                    id="register-name"
+                    placeholder="Enter your full name"
+                    required
+                    minlength="2"
+                    maxlength="80"
+                    autocomplete="name"
+                >
+            </div>
 
-                    <label for="register-password">Password</label>
+            <div class="register-field">
+                <label for="register-email">Email Address</label>
+                <input
+                    type="email"
+                    id="register-email"
+                    placeholder="you@example.com"
+                    required
+                    maxlength="254"
+                    autocomplete="email"
+                >
+                <small>Use an email address you can access.</small>
+            </div>
+
+            <div class="register-field">
+                <label for="register-password">Password</label>
+
+                <div class="password-input-wrap">
                     <input
                         type="password"
                         id="register-password"
-                        placeholder="Create password (min. 6 characters)"
+                        placeholder="Create a strong password"
+                        required
+                        minlength="6"
+                        autocomplete="new-password"
+                        aria-describedby="password-strength-text"
+                    >
+
+                    <button
+                        type="button"
+                        class="password-toggle"
+                        data-password-target="register-password"
+                        aria-label="Show password"
+                        aria-pressed="false"
+                    >Show</button>
+                </div>
+
+                <div class="password-strength-track">
+                    <div id="password-strength-bar" class="password-strength-bar"></div>
+                </div>
+
+                <small id="password-strength-text" aria-live="polite">
+                    Use at least 6 characters.
+                </small>
+            </div>
+
+            <div class="register-field">
+                <label for="register-confirm-password">Confirm Password</label>
+
+                <div class="password-input-wrap">
+                    <input
+                        type="password"
+                        id="register-confirm-password"
+                        placeholder="Enter your password again"
                         required
                         minlength="6"
                         autocomplete="new-password"
                     >
 
-                    <button type="submit" id="register-submit-btn">
-                        Register Account
-                    </button>
-
-                </form>
-
-                <div class="auth-footer-help">
-                    <p>
-                        Already registered? <a href="#" onclick="showPage('login')">Sign In instead</a>
-                    </p>
+                    <button
+                        type="button"
+                        class="password-toggle"
+                        data-password-target="register-confirm-password"
+                        aria-label="Show confirmation password"
+                        aria-pressed="false"
+                    >Show</button>
                 </div>
+
+                <small id="confirm-password-message" aria-live="polite"></small>
             </div>
+
+            <button type="submit" id="register-submit-btn" class="register-submit">
+                <span>Create Account</span>
+                <span aria-hidden="true">→</span>
+            </button>
+
+            <p class="register-terms">
+                By registering, you agree to use LearnHub responsibly.
+            </p>
+
+        </form>
+
+        <div class="auth-footer-help">
+            <p>
+                Already have an account?
+                <a href="#" onclick="showPage('login'); return false;">Sign In</a>
+            </p>
         </div>
 
-    </section>
+    </div>
+</div>
 
-
+</section>
 
     <!-- ================= FOOTER ================= -->
     <footer>

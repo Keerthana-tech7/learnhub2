@@ -1159,6 +1159,40 @@ if (loginForm) {
 
 // ================= SHOW / HIDE PASSWORD =================
 
+const passwordField = document.getElementById("register-password");
+const strengthBar = document.getElementById("password-strength-bar");
+const strengthText = document.getElementById("password-strength-text");
+
+if (passwordField && strengthBar && strengthText) {
+passwordField.addEventListener("input", function () {
+const password = this.value;
+let score = 0;
+
+    if (password.length >= 6) score++;
+    if (password.length >= 10) score++;
+    if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+
+    const levels = [
+        { label: "Use at least 6 characters.", width: "0%", color: "#94a3b8" },
+        { label: "Weak password", width: "25%", color: "#ef4444" },
+        { label: "Fair password", width: "45%", color: "#f97316" },
+        { label: "Good password", width: "65%", color: "#eab308" },
+        { label: "Strong password", width: "85%", color: "#22c55e" },
+        { label: "Very strong password", width: "100%", color: "#16a34a" }
+    ];
+
+    const level = password.length === 0
+        ? levels[0]
+        : levels[score];
+
+    strengthBar.style.width = level.width;
+    strengthBar.style.backgroundColor = level.color;
+    strengthText.textContent = level.label;
+});
+
+}
 document.querySelectorAll(".password-toggle").forEach((button) => {
     button.addEventListener("click", function () {
         const inputId = this.dataset.passwordTarget;
@@ -1189,6 +1223,18 @@ if (registerForm) {
         const name = nameInput ? nameInput.value.trim() : "";
         const email = emailInput ? emailInput.value.trim() : "";
         const password = passwordInput ? passwordInput.value : "";
+        const confirmPasswordInput = document.getElementById("register-confirm-password");
+const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : "";
+
+if (confirmPasswordInput && password !== confirmPassword) {
+displayAuthMessage(
+"register-message",
+"Passwords do not match. Please try again.",
+"error"
+);
+confirmPasswordInput.focus();
+return;
+}
 
         if (!name || !email || !password) {
             displayAuthMessage("register-message", "Please fill in all fields.", "error");

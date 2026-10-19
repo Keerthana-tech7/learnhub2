@@ -2448,3 +2448,26 @@ transition: none;
     border-color: #2563eb !important;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
+.study-chapter {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.study-chapter h3 {
+    color: #1d4ed8;
+    margin-top: 0;
+}
+
+.chapter-notes {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.8;
+    color: #334155;
+    background: transparent;
+    margin: 0;
+}

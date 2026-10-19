@@ -17,7 +17,7 @@ app.use(express.static(path.join(__dirname, "public")));
 // Session
 app.use(
   session({
-    secret: "student-study-resource-portal-secret",
+    secret: process.env.SESSION_SECRET || "development-secret-change-me",
     resave: false,
     saveUninitialized: false
   })
@@ -50,11 +50,32 @@ app.post("/api/register", async (req, res) => {
   const cleanEmail = String(email).trim().toLowerCase();
 
   if (!cleanName || !cleanEmail || !password) {
-    return res.status(400).json({
-      success: false,
-      message: "Fields cannot be blank."
-    });
-  }
+  return res.status(400).json({
+    success: false,
+    message: "Fields cannot be blank."
+  });
+}
+
+if (String(password).length < 8) {
+  return res.status(400).json({
+    success: false,
+    message: "Password must be at least 8 characters."
+  });
+}
+
+if (String(password).length > 72) {
+  return res.status(400).json({
+    success: false,
+    message: "Password is too long."
+  });
+}
+
+if (cleanName.length > 100 || cleanEmail.length > 254) {
+  return res.status(400).json({
+    success: false,
+    message: "Name or email is too long."
+  });
+}
 
   if (!cleanEmail.includes("@")) {
     return res.status(400).json({

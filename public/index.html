@@ -144,151 +144,80 @@
     </section>
 
     <!-- ================= RESOURCES ================= -->
-    <section id="resources" class="page">
+<section id="resources" class="page">
+    <h2>📚 Study Resources</h2>
+    <p>Choose a subject to explore study notes.</p>
 
-        <div class="page-header-box">
-            <span class="section-pill">📚 Resource Library</span>
-            <h1>Explore Academic Study Resources</h1>
-            <p class="page-lead">
-                Browse through carefully structured, exam-oriented syllabus notes with code snippets, tips, and downloadable summaries.
-            </p>
+    <div class="resource-container">
+
+        <div class="resource-card">
+            <h3>💻 C Programming</h3>
+            <p>Variables, loops, arrays, functions and pointers.</p>
+            <button onclick="viewResource('c')">View Resource</button>
         </div>
 
-        <!-- Search & Filter Controls -->
-        <div class="search-box">
-            <div class="search-input-wrap">
-                <span class="search-icon">🔍</span>
-                <input
-                    type="text"
-                    id="resource-search"
-                    placeholder="Search topics (e.g. pointers, flexbox, oop, aws)..."
-                >
-            </div>
-
-            <select id="subject-filter">
-                <option value="">All Subjects</option>
-                <option value="C Programming">C Programming</option>
-                <option value="Java">Java</option>
-                <option value="Python">Python</option>
-                <option value="Cloud Computing">Cloud Computing</option>
-            </select>
+        <div class="resource-card">
+            <h3>☕ Java Programming</h3>
+            <p>Classes, objects, inheritance and OOP.</p>
+            <button onclick="viewResource('java')">View Resource</button>
         </div>
 
-        <!-- Subject Filter Chips Row -->
-        <div class="filter-chips-container" id="subject-filter-chips">
-            <button type="button" class="filter-chip active" data-subject="">All Subjects</button>
-            <button type="button" class="filter-chip" data-subject="C Programming">💻 C Programming</button>
-            <button type="button" class="filter-chip" data-subject="Cloud Computing">☁️ Cloud Computing</button>
-            <button type="button" class="filter-chip" data-subject="Java">☕ Java</button>
-            <button type="button" class="filter-chip" data-subject="Python">🐍 Python</button>
+        <div class="resource-card">
+            <h3>🐍 Python Programming</h3>
+            <p>Variables, conditions, loops and functions.</p>
+            <button onclick="viewResource('python')">View Resource</button>
         </div>
 
-
-        <!-- Resource Cards Grid -->
-        <div id="resource-list">
-
-            <div class="resource-card" data-id="c-basics" data-subject="C Programming">
-                <div class="card-top-meta">
-                    <span class="card-badge badge-c">💻 C Programming</span>
-                    <span class="card-read-time">⏱️ 7 min read</span>
-                </div>
-                <h2>C Programming Basics</h2>
-                <p>
-                    Master core C syntax, memory architecture, control flow, functions, pointer arithmetic, and dynamic allocation.
-                </p>
-                <div class="topic-tags">
-                    <span class="topic-tag">#Pointers</span>
-                    <span class="topic-tag">#Memory</span>
-                    <span class="topic-tag">#Functions</span>
-                    <span class="topic-tag">#Loops</span>
-                </div>
-                <p>
-                    <strong>Subject:</strong> C Programming
-                </p>
-                <button class="view-resource-btn" data-id="c-basics">
-                    📖 View Resource
-                </button>
-            </div>
-
-            
-
-            <div class="resource-card" data-id="aws-cloud" data-subject="Cloud Computing">
-                <div class="card-top-meta">
-                    <span class="card-badge badge-cloud">☁️ Cloud Computing</span>
-                    <span class="card-read-time">⏱️ 6 min read</span>
-                </div>
-                <h2>AWS Cloud Fundamentals</h2>
-                <p>
-                    Foundational cloud architecture concepts: EC2 compute, S3 storage, RDS databases, Lambda serverless, and IAM security.
-                </p>
-                <div class="topic-tags">
-                    <span class="topic-tag">#AWS</span>
-                    <span class="topic-tag">#EC2</span>
-                    <span class="topic-tag">#S3</span>
-                    <span class="topic-tag">#Serverless</span>
-                </div>
-                <p>
-                    <strong>Subject:</strong> Cloud Computing
-                </p>
-                <button class="view-resource-btn" data-id="aws-cloud">
-                    📖 View Resource
-                </button>
-            </div>
-
-
-            <div class="resource-card" data-id="java-oop" data-subject="Java">
-                <div class="card-top-meta">
-                    <span class="card-badge badge-java">☕ Java</span>
-                    <span class="card-read-time">⏱️ 9 min read</span>
-                </div>
-                <h2>Java OOP Concepts</h2>
-                <p>
-                    In-depth breakdown of Object-Oriented principles: encapsulation, inheritance, polymorphism, abstract classes, and collections.
-                </p>
-                <div class="topic-tags">
-                    <span class="topic-tag">#OOP</span>
-                    <span class="topic-tag">#Inheritance</span>
-                    <span class="topic-tag">#Polymorphism</span>
-                    <span class="topic-tag">#Collections</span>
-                </div>
-                <p>
-                    <strong>Subject:</strong> Java
-                </p>
-                <button class="view-resource-btn" data-id="java-oop">
-                    📖 View Resource
-                </button>
-            </div>
-
-
-            <div class="resource-card" data-id="python-core" data-subject="Python">
-                <div class="card-top-meta">
-                    <span class="card-badge badge-python">🐍 Python</span>
-                    <span class="card-read-time">⏱️ 6 min read</span>
-                </div>
-                <h2>Python Essentials</h2>
-                <p>
-                    Concise and comprehensive guide to Python data structures, list comprehensions, dictionary tricks, and file handling.
-                </p>
-                <div class="topic-tags">
-                    <span class="topic-tag">#DataStructures</span>
-                    <span class="topic-tag">#Comprehensions</span>
-                    <span class="topic-tag">#FileIO</span>
-                    <span class="topic-tag">#PEP8</span>
-                </div>
-                <p>
-                    <strong>Subject:</strong> Python
-                </p>
-                <button class="view-resource-btn" data-id="python-core">
-                    📖 View Resource
-                </button>
-            </div>
-
+        <div class="resource-card">
+            <h3>🌐 Web Development</h3>
+            <p>HTML, CSS and JavaScript fundamentals.</p>
+            <button onclick="viewResource('web')">View Resource</button>
         </div>
 
-    </section>
+        <div class="resource-card">
+            <h3>🗄️ Database Management (DBMS)</h3>
+            <p>SQL, tables, queries and normalization.</p>
+            <button onclick="viewResource('dbms')">View Resource</button>
+        </div>
 
+        <div class="resource-card">
+            <h3>🖥️ Operating Systems</h3>
+            <p>Processes, memory and CPU scheduling.</p>
+            <button onclick="viewResource('os')">View Resource</button>
+        </div>
 
+        <div class="resource-card">
+            <h3>🌐 Computer Networks</h3>
+            <p>Network types, protocols and TCP/IP.</p>
+            <button onclick="viewResource('networks')">View Resource</button>
+        </div>
 
+        <div class="resource-card">
+            <h3>🧠 Data Structures & Algorithms</h3>
+            <p>Arrays, stacks, queues, sorting and searching.</p>
+            <button onclick="viewResource('dsa')">View Resource</button>
+        </div>
+
+        <div class="resource-card">
+            <h3>🤖 Artificial Intelligence</h3>
+            <p>AI fundamentals and machine learning basics.</p>
+            <button onclick="viewResource('ai')">View Resource</button>
+        </div>
+
+        <div class="resource-card">
+            <h3>🧮 Software Engineering</h3>
+            <p>SDLC, software design and testing.</p>
+            <button onclick="viewResource('se')">View Resource</button>
+        </div>
+
+    </div>
+
+    <div id="resource-details" style="display:none;">
+        <h2 id="resource-title"></h2>
+        <div id="resource-content"></div>
+        <button onclick="closeResource()">⬅ Back to Resources</button>
+    </div>
+</section>
     <!-- ================= UPLOAD ================= -->
     <section id="upload" class="page">
 

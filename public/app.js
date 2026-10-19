@@ -1664,3 +1664,21 @@ function closeResource() {
         element.style.display = "";
     });
 }
+function searchResources() {
+    const input = document
+        .getElementById("resource-search")
+        .value.toLowerCase()
+        .trim();
+
+    const cards = document.querySelectorAll(
+        "#resources .resource-card"
+    );
+
+    cards.forEach(card => {
+        const subject = card.textContent.toLowerCase();
+
+        card.style.display = subject.includes(input)
+            ? ""
+            : "none";
+    });
+}

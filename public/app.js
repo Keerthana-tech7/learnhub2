@@ -1623,6 +1623,648 @@ const studyResources = {
     }
 };
 
+funcion viewResource(subject) {
+    const studyResources = {
+    c: {
+        title: "C Programming",
+        chapters: [
+            {
+                title: "Chapter 1: Introduction to C",
+                notes: `
+C is a general-purpose programming language.
+
+Topics:
+• History and features of C
+• Structure of a C program
+• Keywords and identifiers
+• Variables and constants
+• Data types: int, char, float and double
+• Operators and expressions
+
+Example:
+#include <stdio.h>
+int main() {
+    printf("Hello World");
+    return 0;
+}
+
+Important Questions:
+1. Explain the features of C.
+2. What are data types?
+3. Explain the structure of a C program.
+`
+            },
+            {
+                title: "Chapter 2: Control Statements",
+                notes: `
+Topics:
+• if, if-else and nested if
+• switch statements
+• for, while and do-while loops
+• break and continue
+• Nested loops
+
+Example:
+for (int i = 1; i <= 5; i++) {
+    printf("%d ", i);
+}
+
+Important Questions:
+1. Differentiate while and do-while.
+2. Explain if-else statements.
+3. Write a program to print numbers from 1 to 10.
+`
+            },
+            {
+                title: "Chapter 3: Arrays and Functions",
+                notes: `
+Topics:
+• One-dimensional arrays
+• Two-dimensional arrays
+• Function declaration and definition
+• Function arguments and return values
+• Recursion
+• Introduction to pointers
+
+Example:
+int numbers[3] = {10, 20, 30};
+
+Important Questions:
+1. What is an array?
+2. Explain user-defined functions.
+3. What is recursion?
+4. What is a pointer?
+`
+            }
+        ]
+    },
+
+    java: {
+        title: "Java Programming",
+        chapters: [
+            {
+                title: "Chapter 1: Java Fundamentals",
+                notes: `
+Topics:
+• Features of Java
+• JVM, JRE and JDK
+• Variables and data types
+• Operators
+• Conditional statements
+• Loops
+
+Example:
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello Java");
+    }
+}
+
+Questions:
+1. Explain the features of Java.
+2. Differentiate JVM, JRE and JDK.
+3. Explain Java data types.
+`
+            },
+            {
+                title: "Chapter 2: Object-Oriented Programming",
+                notes: `
+Topics:
+• Classes and objects
+• Constructors
+• Encapsulation
+• Inheritance
+• Polymorphism
+• Abstraction and interfaces
+
+Example:
+class Student {
+    String name;
+
+    void display() {
+        System.out.println(name);
+    }
+}
+
+Questions:
+1. Define class and object.
+2. Explain inheritance.
+3. What is polymorphism?
+4. Explain encapsulation.
+`
+            },
+            {
+                title: "Chapter 3: Advanced Java Basics",
+                notes: `
+Topics:
+• Exception handling
+• try, catch and finally
+• Arrays and strings
+• Collections framework
+• File handling basics
+
+Example:
+try {
+    int result = 10 / 0;
+} catch (ArithmeticException e) {
+    System.out.println("Cannot divide by zero");
+}
+
+Questions:
+1. What is exception handling?
+2. Explain try and catch.
+3. What is a Java collection?
+`
+            }
+        ]
+    },
+
+    python: {
+        title: "Python Programming",
+        chapters: [
+            {
+                title: "Chapter 1: Python Basics",
+                notes: `
+Topics:
+• Introduction to Python
+• Variables and data types
+• Input and output
+• Operators
+• Type conversion
+• Conditional statements
+
+Example:
+name = input("Enter your name: ")
+print("Hello", name)
+
+Questions:
+1. Explain Python features.
+2. List Python data types.
+3. Explain type conversion.
+`
+            },
+            {
+                title: "Chapter 2: Collections and Loops",
+                notes: `
+Topics:
+• Lists and tuples
+• Sets and dictionaries
+• for and while loops
+• Loop control statements
+• String operations
+
+Example:
+numbers = [10, 20, 30]
+
+for number in numbers:
+    print(number)
+
+Questions:
+1. Differentiate lists and tuples.
+2. What is a dictionary?
+3. Explain for and while loops.
+`
+            },
+            {
+                title: "Chapter 3: Functions and Files",
+                notes: `
+Topics:
+• Defining functions
+• Parameters and return values
+• Lambda functions
+• Modules and packages
+• File reading and writing
+• Exception handling
+
+Example:
+def add(a, b):
+    return a + b
+
+print(add(5, 3))
+
+Questions:
+1. How do you define a function?
+2. What is a module?
+3. Explain file handling.
+`
+            }
+        ]
+    },
+
+    web: {
+        title: "Web Development",
+        chapters: [
+            {
+                title: "Chapter 1: HTML",
+                notes: `
+Topics:
+• Structure of HTML documents
+• Headings and paragraphs
+• Links and images
+• Lists and tables
+• Forms and input elements
+• Semantic HTML
+
+Example:
+<h1>My Website</h1>
+<p>Welcome to my website.</p>
+
+Questions:
+1. What is HTML?
+2. Explain HTML forms.
+3. What are semantic elements?
+`
+            },
+            {
+                title: "Chapter 2: CSS",
+                notes: `
+Topics:
+• CSS syntax and selectors
+• Colors and backgrounds
+• Margins and padding
+• Box model
+• Flexbox and Grid
+• Responsive design
+
+Example:
+.card {
+    padding: 20px;
+    border-radius: 10px;
+}
+
+Questions:
+1. Explain the CSS box model.
+2. Differentiate margin and padding.
+3. What is responsive design?
+`
+            },
+            {
+                title: "Chapter 3: JavaScript",
+                notes: `
+Topics:
+• Variables and data types
+• Functions
+• Conditions and loops
+• Arrays and objects
+• DOM manipulation
+• Events and event handlers
+
+Example:
+document.querySelector("h1").textContent =
+    "Welcome!";
+
+Questions:
+1. What is JavaScript?
+2. What is the DOM?
+3. Explain JavaScript events.
+`
+            }
+        ]
+    },
+
+    dbms: {
+        title: "Database Management (DBMS)",
+        chapters: [
+            {
+                title: "Chapter 1: Database Fundamentals",
+                notes: `
+Topics:
+• Introduction to databases
+• DBMS architecture
+• Tables, rows and columns
+• Primary and foreign keys
+• Entity-Relationship diagrams
+
+Questions:
+1. What is a DBMS?
+2. Explain primary and foreign keys.
+3. What is an ER diagram?
+`
+            },
+            {
+                title: "Chapter 2: SQL",
+                notes: `
+Topics:
+• CREATE and ALTER
+• INSERT and UPDATE
+• DELETE and SELECT
+• WHERE and ORDER BY
+• GROUP BY and aggregate functions
+• JOIN operations
+
+Example:
+SELECT name
+FROM students
+WHERE marks >= 80;
+
+Questions:
+1. Explain SQL commands.
+2. What is a JOIN?
+3. Differentiate DELETE and DROP.
+`
+            },
+            {
+                title: "Chapter 3: Database Design",
+                notes: `
+Topics:
+• Database normalization
+• First, Second and Third Normal Forms
+• Transactions
+• ACID properties
+• Indexing and constraints
+
+Questions:
+1. What is normalization?
+2. Explain ACID properties.
+3. Why are database indexes used?
+`
+            }
+        ]
+    },
+
+    os: {
+        title: "Operating Systems",
+        chapters: [
+            {
+                title: "Chapter 1: OS Fundamentals",
+                notes: `
+Topics:
+• Functions of an operating system
+• Types of operating systems
+• Kernel and system calls
+• User mode and kernel mode
+
+Questions:
+1. Define an operating system.
+2. Explain OS functions.
+3. What is a kernel?
+`
+            },
+            {
+                title: "Chapter 2: Process Management",
+                notes: `
+Topics:
+• Processes and threads
+• Process states
+• CPU scheduling
+• FCFS, SJF and Round Robin
+• Synchronization
+• Deadlocks
+
+Questions:
+1. Differentiate processes and threads.
+2. Explain CPU scheduling.
+3. What is a deadlock?
+`
+            },
+            {
+                title: "Chapter 3: Memory and Files",
+                notes: `
+Topics:
+• Memory management
+• Paging and segmentation
+• Virtual memory
+• Page replacement
+• File systems
+• Disk scheduling
+
+Questions:
+1. What is virtual memory?
+2. Explain paging.
+3. What is a file system?
+`
+            }
+        ]
+    },
+
+    networks: {
+        title: "Computer Networks",
+        chapters: [
+            {
+                title: "Chapter 1: Networking Fundamentals",
+                notes: `
+Topics:
+• Introduction to computer networks
+• LAN, MAN and WAN
+• Network topologies
+• Network devices
+• Transmission media
+
+Questions:
+1. Define a computer network.
+2. Explain network topologies.
+3. Differentiate LAN and WAN.
+`
+            },
+            {
+                title: "Chapter 2: Network Models",
+                notes: `
+Topics:
+• OSI reference model
+• TCP/IP model
+• IP addressing
+• IPv4 and IPv6
+• Routers and switches
+• TCP and UDP
+
+Questions:
+1. Explain the OSI layers.
+2. Differentiate TCP and UDP.
+3. What is an IP address?
+`
+            },
+            {
+                title: "Chapter 3: Network Services",
+                notes: `
+Topics:
+• DNS
+• HTTP and HTTPS
+• DHCP
+• Email protocols
+• Network troubleshooting basics
+
+Questions:
+1. What is DNS?
+2. Differentiate HTTP and HTTPS.
+3. Explain the purpose of DHCP.
+`
+            }
+        ]
+    },
+
+    dsa: {
+        title: "Data Structures & Algorithms",
+        chapters: [
+            {
+                title: "Chapter 1: Linear Data Structures",
+                notes: `
+Topics:
+• Arrays
+• Linked lists
+• Stacks
+• Queues
+• Basic operations and applications
+
+Example:
+A stack follows LIFO:
+Last In, First Out.
+
+Questions:
+1. What is a data structure?
+2. Differentiate stacks and queues.
+3. Explain linked lists.
+`
+            },
+            {
+                title: "Chapter 2: Non-Linear Structures",
+                notes: `
+Topics:
+• Trees
+• Binary trees
+• Binary search trees
+• Graphs
+• Graph traversal
+• Heaps
+
+Questions:
+1. What is a binary tree?
+2. Explain tree traversal.
+3. Differentiate trees and graphs.
+`
+            },
+            {
+                title: "Chapter 3: Algorithms",
+                notes: `
+Topics:
+• Algorithm analysis
+• Time and space complexity
+• Big O notation
+• Linear and binary search
+• Bubble, selection and insertion sort
+• Introduction to recursion
+
+Questions:
+1. What is time complexity?
+2. Explain binary search.
+3. Compare sorting algorithms.
+`
+            }
+        ]
+    },
+
+    ai: {
+        title: "Artificial Intelligence",
+        chapters: [
+            {
+                title: "Chapter 1: AI Fundamentals",
+                notes: `
+Topics:
+• Definition and history of AI
+• Intelligent agents
+• Applications of AI
+• Problem-solving and search
+• Benefits and limitations
+
+Questions:
+1. Define artificial intelligence.
+2. Explain AI applications.
+3. What is an intelligent agent?
+`
+            },
+            {
+                title: "Chapter 2: Machine Learning",
+                notes: `
+Topics:
+• Introduction to machine learning
+• Supervised learning
+• Unsupervised learning
+• Classification and regression
+• Training and testing data
+• Model evaluation
+
+Questions:
+1. What is machine learning?
+2. Differentiate supervised and unsupervised learning.
+3. Why is model evaluation important?
+`
+            },
+            {
+                title: "Chapter 3: AI Applications",
+                notes: `
+Topics:
+• Natural language processing
+• Computer vision
+• Recommendation systems
+• Neural networks
+• Responsible AI
+• Bias, fairness and privacy
+
+Questions:
+1. What is natural language processing?
+2. Explain computer vision.
+3. Why is responsible AI important?
+`
+            }
+        ]
+    },
+
+    se: {
+        title: "Software Engineering",
+        chapters: [
+            {
+                title: "Chapter 1: Software Development Life Cycle",
+                notes: `
+Topics:
+• Software engineering fundamentals
+• SDLC phases
+• Waterfall model
+• Agile development
+• Spiral model
+
+Questions:
+1. Define software engineering.
+2. Explain SDLC phases.
+3. Differentiate Waterfall and Agile.
+`
+            },
+            {
+                title: "Chapter 2: Requirements and Design",
+                notes: `
+Topics:
+• Requirement gathering
+• Functional and non-functional requirements
+• Software architecture
+• UML diagrams
+• Design principles
+
+Questions:
+1. Differentiate functional and non-functional requirements.
+2. What is software architecture?
+3. Why are UML diagrams used?
+`
+            },
+            {
+                title: "Chapter 3: Testing and Maintenance",
+                notes: `
+Topics:
+• Unit testing
+• Integration testing
+• System testing
+• Acceptance testing
+• Debugging
+• Software maintenance
+
+Questions:
+1. Explain software testing levels.
+2. Differentiate verification and validation.
+3. What is software maintenance?
+`
+            }
+        ]
+    }
+};
+
+
 function viewResource(subject) {
     const resource = studyResources[subject];
 
@@ -1634,28 +2276,30 @@ function viewResource(subject) {
     const content = document.getElementById("resource-content");
     content.replaceChildren();
 
-    const heading = document.createElement("h3");
-    heading.textContent = "Study Notes";
-    content.appendChild(heading);
+    resource.chapters.forEach((chapter, index) => {
+        const article = document.createElement("article");
+        article.className = "study-chapter";
 
-    const list = document.createElement("ul");
+        const heading = document.createElement("h3");
+        heading.textContent = chapter.title;
 
-    resource.notes.forEach(note => {
-        const item = document.createElement("li");
-        item.textContent = note;
-        list.appendChild(item);
+        const notes = document.createElement("pre");
+        notes.className = "chapter-notes";
+        notes.textContent = chapter.notes.trim();
+
+        article.append(heading, notes);
+        content.appendChild(article);
     });
 
-    content.appendChild(list);
-
-    document.querySelectorAll("#resources > h2, #resources > p, " +
-        "#resources > .resource-container").forEach(element => {
+    document.querySelectorAll(
+        "#resources > h2, #resources > p, " +
+        "#resources > .resource-container, #resources > #resource-search"
+    ).forEach(element => {
         element.style.display = "none";
     });
 
     document.getElementById("resource-details").style.display = "block";
 }
-
 function closeResource() {
     document.getElementById("resource-details").style.display = "none";
 

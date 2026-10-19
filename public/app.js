@@ -662,37 +662,40 @@ function updateNavUI() {
 function showPage(pageId, options = {}) {
     const loggedIn = isUserLoggedIn();
 
-    // Logged-out users can only access Register and Login
+    // Protect pages that require login
     if (!loggedIn && !["register", "login"].includes(pageId)) {
         showToast("Please log in to access the study portal.");
         pageId = "register";
     }
 
-    // Logged-in users cannot return to Register or Login
     if (loggedIn && ["register", "login"].includes(pageId)) {
         pageId = "home";
     }
 
     // Hide all pages
     document.querySelectorAll(".page").forEach(function(page) {
+        page.classList.remove("active");
         page.style.display = "none";
     });
 
-    // Display selected page
+    // Show the selected page
     const selectedPage = document.getElementById(pageId);
 
     if (selectedPage) {
+        selectedPage.classList.add("active");
         selectedPage.style.display = "block";
         window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+        console.error("Page not found:", pageId);
     }
 
-    // Update navigation highlighting
+    // Highlight the active navigation link
     document.querySelectorAll("#main-nav a.nav-link").forEach(function(link) {
         link.classList.remove("active");
 
         const onclickAttr = link.getAttribute("onclick") || "";
 
-        if (onclickAttr.includes(`'${pageId}'`)) {
+        if (onclickAttr.includes("'" + pageId + "'")) {
             link.classList.add("active");
         }
     });

@@ -1177,7 +1177,7 @@ if (registerForm) {
             return;
         }
 
-        if (password.length < 6) {
+        if (password.length < 8) {
             displayAuthMessage("register-message", "Password must be at least 6 characters long.", "error");
             return;
         }

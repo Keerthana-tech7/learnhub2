@@ -1157,6 +1157,24 @@ if (loginForm) {
 
 // ================= REGISTER =================
 
+// ================= SHOW / HIDE PASSWORD =================
+
+document.querySelectorAll(".password-toggle").forEach((button) => {
+    button.addEventListener("click", function () {
+        const inputId = this.dataset.passwordTarget;
+        const passwordInput = document.getElementById(inputId);
+
+        if (!passwordInput) return;
+
+        const isPasswordHidden = passwordInput.type === "password";
+
+        passwordInput.type = isPasswordHidden ? "text" : "password";
+        this.textContent = isPasswordHidden ? "Hide" : "Show";
+
+        this.setAttribute("aria-pressed", String(isPasswordHidden));
+    });
+});
+
 const registerForm = document.getElementById("register-form");
 
 if (registerForm) {
@@ -1177,7 +1195,7 @@ if (registerForm) {
             return;
         }
 
-        if (password.length < 8) {
+        if (password.length < 6) {
             displayAuthMessage("register-message", "Password must be at least 6 characters long.", "error");
             return;
         }

@@ -1489,3 +1489,178 @@ if (aiForm) {
         }
     });
 }
+const studyResources = {
+    c: {
+        title: "C Programming",
+        notes: [
+            "Variables store data values.",
+            "Data types include int, char, float and double.",
+            "Conditions use if, else and switch.",
+            "Loops include for, while and do-while.",
+            "Arrays store multiple values of the same type.",
+            "Functions divide programs into reusable blocks.",
+            "Pointers store memory addresses."
+        ]
+    },
+
+    java: {
+        title: "Java Programming",
+        notes: [
+            "Java is an object-oriented programming language.",
+            "Variables store values of different data types.",
+            "Classes define the structure of objects.",
+            "Objects are instances of classes.",
+            "Inheritance allows classes to reuse functionality.",
+            "Polymorphism allows different implementations of a common interface.",
+            "Exception handling uses try, catch and finally."
+        ]
+    },
+
+    python: {
+        title: "Python Programming",
+        notes: [
+            "Python is a high-level programming language.",
+            "Variables store values without explicit type declarations.",
+            "Lists store collections of items.",
+            "Dictionaries store key-value pairs.",
+            "Conditions use if, elif and else.",
+            "Loops use for and while.",
+            "Functions are defined using def."
+        ]
+    },
+
+    web: {
+        title: "Web Development",
+        notes: [
+            "HTML structures webpage content.",
+            "CSS controls webpage appearance and layout.",
+            "JavaScript adds interactivity.",
+            "HTML links use the a element.",
+            "Forms collect information from users.",
+            "The DOM represents webpage elements.",
+            "Responsive design adapts websites to different screens."
+        ]
+    },
+
+    dbms: {
+        title: "Database Management (DBMS)",
+        notes: [
+            "A DBMS helps store and manage data.",
+            "Tables organize data into rows and columns.",
+            "Primary keys uniquely identify records.",
+            "Foreign keys connect related tables.",
+            "SELECT retrieves data from tables.",
+            "INSERT adds new records.",
+            "UPDATE modifies existing records.",
+            "DELETE removes records."
+        ]
+    },
+
+    os: {
+        title: "Operating Systems",
+        notes: [
+            "An operating system manages computer resources.",
+            "Processes are programs in execution.",
+            "CPU scheduling allocates processor time.",
+            "Memory management controls memory allocation.",
+            "Files organize information on storage devices.",
+            "Deadlocks occur when processes wait indefinitely for resources.",
+            "Examples include Windows, Linux and macOS."
+        ]
+    },
+
+    networks: {
+        title: "Computer Networks",
+        notes: [
+            "A network connects devices to share information.",
+            "LAN covers a limited geographical area.",
+            "WAN covers larger geographical areas.",
+            "IP addresses identify devices on networks.",
+            "TCP provides reliable data delivery.",
+            "DNS translates domain names into IP addresses.",
+            "HTTP and HTTPS are used for web communication."
+        ]
+    },
+
+    dsa: {
+        title: "Data Structures & Algorithms",
+        notes: [
+            "Arrays store elements in indexed positions.",
+            "Linked lists connect elements using links.",
+            "Stacks follow Last In, First Out (LIFO).",
+            "Queues follow First In, First Out (FIFO).",
+            "Trees represent hierarchical data.",
+            "Linear search checks elements one by one.",
+            "Binary search works on sorted data.",
+            "Sorting arranges data in a particular order."
+        ]
+    },
+
+    ai: {
+        title: "Artificial Intelligence",
+        notes: [
+            "AI enables computers to perform tasks associated with human intelligence.",
+            "Machine learning learns patterns from data.",
+            "Supervised learning uses labeled training data.",
+            "Unsupervised learning finds patterns in unlabeled data.",
+            "Neural networks are inspired by interconnected neurons.",
+            "Natural language processing works with human language.",
+            "AI systems should be evaluated for accuracy and fairness."
+        ]
+    },
+
+    se: {
+        title: "Software Engineering",
+        notes: [
+            "Software engineering applies systematic methods to software development.",
+            "SDLC stands for Software Development Life Cycle.",
+            "Requirements describe what a system must do.",
+            "Design defines the structure of the software.",
+            "Implementation converts designs into code.",
+            "Testing helps identify defects.",
+            "Maintenance updates software after release."
+        ]
+    }
+};
+
+function viewResource(subject) {
+    const resource = studyResources[subject];
+
+    if (!resource) return;
+
+    document.getElementById("resource-title").textContent =
+        resource.title;
+
+    const content = document.getElementById("resource-content");
+    content.replaceChildren();
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Study Notes";
+    content.appendChild(heading);
+
+    const list = document.createElement("ul");
+
+    resource.notes.forEach(note => {
+        const item = document.createElement("li");
+        item.textContent = note;
+        list.appendChild(item);
+    });
+
+    content.appendChild(list);
+
+    document.querySelectorAll("#resources > h2, #resources > p, " +
+        "#resources > .resource-container").forEach(element => {
+        element.style.display = "none";
+    });
+
+    document.getElementById("resource-details").style.display = "block";
+}
+
+function closeResource() {
+    document.getElementById("resource-details").style.display = "none";
+
+    document.querySelectorAll("#resources > h2, #resources > p, " +
+        "#resources > .resource-container").forEach(element => {
+        element.style.display = "";
+    });
+}

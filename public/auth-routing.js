@@ -1,132 +1,82 @@
-(function(){
-  // Small routing shim to enforce registration -> login -> home flow
-  // and to guard protected pages without changing existing UI or server logic.
+(function () {
+"use strict";
 
-  function whenShowPageReady(cb) {
-    if (typeof window.showPage === 'function') return cb();
-    var tries = 0;
-    var id = setInterval(function(){
-      tries++;
-      if (typeof window.showPage === 'function' || tries > 100) {
-        clearInterval(id);
-        cb();
-      }
-    }, 40);
-  }
+function whenShowPageReady(callback) {
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", callback, {
+            once: true
+        });
+    } else {
+        callback();
+    }
+}
 
-  function isLoggedIn() {
-    return localStorage.getItem('learnhub_isLoggedIn') === 'true';
-  }
-  function markLoggedIn() {
-    localStorage.setItem('learnhub_isLoggedIn','true');
-  }
+function isLoggedIn() {
+    return localStorage.getItem("learnhub_logged_in") === "true";
+}
 
-  // Keep a flag when a user just registered; the register submit handler sets this.
-  function markJustRegistered() {
-    localStorage.setItem('learnhub_justRegistered','true');
-  }
+function showPageSafely(pageName) {
+    var protectedPages = ["upload", "admin"];
 
-  function clearJustRegistered() {
-    localStorage.removeItem('learnhub_justRegistered');
-  }
+    if (protectedPages.includes(pageName) && !isLoggedIn()) {
+        pageName = "login";
+    }
 
-  // Observe UI changes that indicate a successful login (nav-logout becomes visible)
-  function observeLoginSuccess() {
-    var navLogout = document.getElementById('nav-logout');
-    if (!navLogout) return;
+    if (typeof window.showPage === "function") {
+        window.showPage(pageName);
+        return;
+    }
 
-    // If already visible, consider user logged in
-    try {
-      var style = window.getComputedStyle(navLogout);
-      if (style && style.display !== 'none') {
-        markLoggedIn();
-      }
-    } catch(e){}
-
-    var observer = new MutationObserver(function(){
-      var visible = window.getComputedStyle(navLogout).display !== 'none';
-      if (visible && !isLoggedIn()) {
-        // The existing app/logic just logged the user in and revealed the logout link.
-        markLoggedIn();
-        // Navigate to home after login (preserve existing handlers)
-        if (typeof window._originalShowPage === 'function') {
-          window._originalShowPage('home');
-        }
-      }
+    document.querySelectorAll(".page").forEach(function (page) {
+        page.classList.remove("active");
     });
 
-    observer.observe(navLogout, { attributes: true, attributeFilter: ['style','class'] });
-  }
+    var target = document.getElementById(pageName);
 
-  whenShowPageReady(function(){
-    // Capture original showPage so we can wrap it without altering behavior.
-    if (!window._originalShowPage) {
-      window._originalShowPage = window.showPage.bind(window);
+    if (target) {
+        target.classList.add("active");
     }
+}
 
-    // Protect specific pages unless logged in. Add or remove page ids from this set if needed.
-    var protectedPages = new Set(['upload','admin']);
+whenShowPageReady(function () {
+    // Make password visibility buttons work.
+    document.querySelectorAll(".password-toggle").forEach(function (button) {
+        button.addEventListener("click", function () {
+            var input = document.getElementById(
+                button.getAttribute("data-password-target")
+            );
 
-    // Override showPage to enforce protection and to clear/register flags safely.
-    window.showPage = function(page) {
-      // If the app calls showPage with an element or event, try to normalize
-      if (!page || typeof page !== 'string') {
-        return window._originalShowPage(page);
-      }
+            if (!input) return;
 
-      // If user is not logged in and requests a protected page, redirect to login instead.
-      if (protectedPages.has(page) && !isLoggedIn()) {
-        // Send them to login. Do not break anything else.
-        return window._originalShowPage('login');
-      }
+            var shouldShow = input.type === "password";
 
-      // If navigating to login and we had a just-registered flag, clear it (we'll land on login intentionally).
-      if (page === 'login' && localStorage.getItem('learnhub_justRegistered') === 'true') {
-        clearJustRegistered();
-      }
+            input.type = shouldShow ? "text" : "password";
+            button.textContent = shouldShow ? "Hide" : "Show";
+            button.setAttribute("aria-pressed", String(shouldShow));
+        });
+    });
 
-      return window._originalShowPage(page);
-    };
+    // Do not override the existing registration form handler.
+    var registerForm = document.getElementById("register-form");
 
-    // Wire the register form to mark that a registration attempt occurred.
-    var registerForm = document.getElementById('register-form');
     if (registerForm) {
-      registerForm.addEventListener('submit', function(){
-        // Set a lightweight flag; the actual registration logic in the app remains unchanged.
-        markJustRegistered();
-      }, true);
+        registerForm.addEventListener("submit", function () {
+            // The registration handler in app.js handles account creation.
+        });
     }
 
-    // When the page loads (or on script run), decide the initial page to show with minimal interference.
-    function initialRouting() {
-      // If already logged in, show home.
-      if (isLoggedIn()) {
-        window._originalShowPage('home');
-        return;
-      }
+    // Keep the initial page selection simple.
+    var loggedIn = isLoggedIn();
+    var justRegistered =
+        localStorage.getItem("learnhub_justRegistered") === "true";
 
-      // If user just completed registration, show login.
-      if (localStorage.getItem('learnhub_justRegistered') === 'true') {
-        // Clear the flag (we only want this to apply once) and go to login.
-        clearJustRegistered();
-        window._originalShowPage('login');
-        return;
-      }
-
-      // Default for new visitors: show the register page first.
-      window._originalShowPage('register');
-    }
-
-    // Run initial routing now (if document already loaded) or on DOMContentLoaded.
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function(){
-        initialRouting();
-        observeLoginSuccess();
-      });
+    if (loggedIn) {
+        showPageSafely("home");
+    } else if (justRegistered) {
+        showPageSafely("login");
     } else {
-      initialRouting();
-      observeLoginSuccess();
+        showPageSafely("register");
     }
-  });
+});
 
 })();

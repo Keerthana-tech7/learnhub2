@@ -581,3 +581,4 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 });
+});

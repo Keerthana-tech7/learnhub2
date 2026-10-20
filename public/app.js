@@ -415,3 +415,169 @@ document.addEventListener('DOMContentLoaded', function () {
   window.showPage('register');
 });
 
+// ================= REGISTER PAGE FIX =================
+
+document.addEventListener("DOMContentLoaded", function () {
+    const registerForm = document.getElementById("register-form");
+    const passwordInput = document.getElementById("register-password");
+    const confirmPasswordInput = document.getElementById("register-confirm-password");
+    const registerMessage = document.getElementById("register-message");
+    const submitButton = document.getElementById("register-submit-btn");
+    const strengthText = document.getElementById("password-strength-text");
+    const strengthBar = document.getElementById("password-strength-bar");
+    const confirmMessage = document.getElementById("confirm-password-message");
+
+    // Show or hide passwords
+    document.querySelectorAll(".password-toggle").forEach(function (button) {
+        button.addEventListener("click", function () {
+            const targetId = button.getAttribute("data-password-target");
+            const input = document.getElementById(targetId);
+
+            if (!input) return;
+
+            const showPassword = input.type === "password";
+            input.type = showPassword ? "text" : "password";
+            button.textContent = showPassword ? "Hide" : "Show";
+            button.setAttribute("aria-pressed", String(showPassword));
+            button.setAttribute(
+                "aria-label",
+                showPassword ? "Hide password" : "Show password"
+            );
+        });
+    });
+
+    if (!registerForm) return;
+
+    // Password strength indicator
+    if (passwordInput) {
+        passwordInput.addEventListener("input", function () {
+            const password = passwordInput.value;
+            let strength = 0;
+
+            if (password.length >= 8) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[a-z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+
+            const labels = [
+                "Use at least 8 characters.",
+                "Very weak",
+                "Weak",
+                "Fair",
+                "Good",
+                "Strong"
+            ];
+
+            if (strengthText) {
+                strengthText.textContent = labels[strength];
+            }
+
+            if (strengthBar) {
+                strengthBar.style.width = (strength * 20) + "%";
+            }
+        });
+    }
+
+    // Confirm password
+    if (confirmPasswordInput) {
+        confirmPasswordInput.addEventListener("input", function () {
+            const matches = confirmPasswordInput.value === passwordInput.value;
+
+            if (confirmMessage) {
+                confirmMessage.textContent = matches
+                    ? "Passwords match."
+                    : "Passwords do not match.";
+            }
+
+            confirmPasswordInput.setCustomValidity(
+                matches ? "" : "Passwords do not match."
+            );
+        });
+    }
+
+    // Register account
+    registerForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const name = document.getElementById("register-name").value.trim();
+        const email = document.getElementById("register-email").value.trim();
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+
+        if (registerMessage) {
+            registerMessage.textContent = "";
+        }
+
+        if (password.length < 8) {
+            if (registerMessage) {
+                registerMessage.textContent =
+                    "Your password must contain at least 8 characters.";
+            }
+            return;
+        }
+
+        if (password.length > 72) {
+            if (registerMessage) {
+                registerMessage.textContent =
+                    "Your password is too long. Please use at most 72 characters.";
+            }
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            if (registerMessage) {
+                registerMessage.textContent = "Passwords do not match.";
+            }
+            return;
+        }
+
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = "<span>Creating account...</span>";
+
+        try {
+            const response = await fetch("/api/register", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    name: name,
+                    email: email,
+                    password: password
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || "Registration failed.");
+            }
+
+            if (registerMessage) {
+                registerMessage.textContent =
+                    "Registration successful! Please sign in.";
+            }
+
+            // Mark registration and navigate to Login
+            localStorage.setItem("learnhub_registered", "true");
+            localStorage.setItem("learnhub_justRegistered", "true");
+
+            setTimeout(function () {
+                if (typeof window.showPage === "function") {
+                    window.showPage("login");
+                }
+            }, 1000);
+
+        } catch (error) {
+            if (registerMessage) {
+                registerMessage.textContent =
+                    error.message || "Something went wrong. Please try again.";
+            }
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    });
+});

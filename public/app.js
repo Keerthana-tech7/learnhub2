@@ -1,583 +1,901 @@
-// ================= STUDY NOTES DATABASE =================
+/**
+ * STUDYPORTAL PRO - APPLICATION LOGIC & FLOW CONTROLLER
+ * High performance client logic for student authentication, Neon DB resources,
+ * notes viewer, and AI study assistant.
+ */
 
-const STUDY_NOTES_DB = {
-    "c-basics": {
-        id: "c-basics",
-        title: "💻 C Programming Basics - Complete Course Notes",
-        subject: "C Programming",
-        readingTime: "7 min read",
-        level: "Beginner",
-        summary: "Core foundations of C programming: compilation model, basic data types, control flow structures, functions, pointers, and memory management.",
-        content: `
-            <h3>1. Introduction to C Language</h3>
-            <p>C is a procedural, general-purpose programming language developed by Dennis Ritchie in 1972 at Bell Labs. It serves as the foundation for modern operating systems, compilers, and em[...]
+// Storage Keys
+const KEY_REGISTERED = "studyportal_has_registered";
+const KEY_LOGGED_IN = "studyportal_is_logged_in";
+const KEY_USER_DATA = "studyportal_user_data";
+const KEY_LAST_EMAIL = "studyportal_last_email";
 
-            <div class="note-callout">
-                <strong>💡 Core Features:</strong> Structured language, highly portable, direct memory manipulation via pointers, fast execution speed, and rich set of operators.
-            </div>
+// Protected Pages that require authentication
+const PROTECTED_PAGES = ["home", "resources", "ai-search", "upload", "admin"];
 
-            <h3>2. Program Structure & Execution</h3>
-            <p>Every C program begins execution in the <code>main()</code> function. The standard compilation phases are:</p>
-            <ol>
-                <li><strong>Preprocessing:</strong> Resolves <code>#include</code> and <code>#define</code> macros.</li>
-                <li><strong>Compilation:</strong> Translates C code into assembly instructions.</li>
-                <li><strong>Assembly:</strong> Converts assembly instructions into machine code (object file <code>.o</code> / <code>.obj</code>).</li>
-                <li><strong>Linking:</strong> Links object files with system libraries into an executable (<code>.exe</code> or binary).</li>
-            </ol>
+// State
+let allResources = [];
+let activeSubjectFilter = "all";
+let currentModalResource = null;
 
-            <h3>3. Fundamental Data Types</h3>
-            <table class="notes-table">
-                <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Typical Size</th>
-                        <th>Format Specifier</th>
-                        <th>Example Range / Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><code>int</code></td>
-                        <td>4 bytes</td>
-                        <td><code>%d</code> or <code>%i</code></td>
-                        <td>-2,147,483,648 to 2,147,483,647</td>
-                    </tr>
-                    <tr>
-                        <td><code>float</code></td>
-                        <td>4 bytes</td>
-                        <td><code>%f</code></td>
-                        <td>3.14159f (6 decimal places)</td>
-                    </tr>
-                    <tr>
-                        <td><code>double</code></td>
-                        <td>8 bytes</td>
-                        <td><code>%lf</code></td>
-                        <td>3.1415926535 (15 decimal places)</td>
-                    </tr>
-                    <tr>
-                        <td><code>char</code></td>
-                        <td>1 byte</td>
-                        <td><code>%c</code></td>
-                        <td>'A', 'z', ASCII 0 - 255</td>
-                    </tr>
-                </tbody>
-            </table>
+// ================= AUTHENTICATION HELPERS =================
 
-            <h3>4. Control Flow & Loops</h3>
-            <p>C provides structured decision making and repetition constructs:</p>
-            <ul>
-                <li><strong>Conditionals:</strong> <code>if</code>, <code>else if</code>, <code>else</code>, and <code>switch-case</code> for multi-branch branching.</li>
-                <li><strong>Iterative Loops:</strong> <code>for</code> (definite iteration), <code>while</code> (entry-controlled), and <code>do-while</code> (exit-controlled, executes at least on[...]
-                <li><strong>Jump Statements:</strong> <code>break</code> (exit loop/switch), <code>continue</code> (skip current iteration), and <code>return</code> (exit function).</li>
-            </ul>
-
-            <h3>5. Pointers & Memory Management</h3>
-            <p>A <strong>pointer</strong> is a variable that stores the memory address of another variable.</p>
-            <ul>
-                <li><code>&amp;</code> (Address-of operator): Retrieves variable's memory address.</li>
-                <li><code>*</code> (Dereference operator): Accesses value stored at the memory address pointed to.</li>
-                <li><strong>Dynamic Allocation:</strong> <code>malloc()</code>, <code>calloc()</code>, <code>realloc()</code>, and <code>free()</code> from <code>&lt;stdlib.h&gt;</code>.</li>
-            </ul>
-
-            <div class="code-block">
-                <div class="code-header">
-                    <span>c_pointers_example.c</span>
-                    <button class="copy-code-btn" onclick="copyCodeSnippet(this)">Copy Code</button>
-                </div>
-                <pre><code>#include &lt;stdio.h&gt;
-#include &lt;stdlib.h&gt;
-
-void swap(int *a, int *b) {
-    int temp = *a;
-    *a = *b;
-    *b = temp;
+function hasUserRegistered() {
+  return localStorage.getItem(KEY_REGISTERED) === "true";
 }
 
-int main() {
-    int x = 10, y = 20;
-    printf("Before swap: x = %d, y = %d\\n", x, y);
+function markUserAsRegistered(email) {
+  localStorage.setItem(KEY_REGISTERED, "true");
+  if (email) {
+    localStorage.setItem(KEY_LAST_EMAIL, email);
+  }
+}
 
-    // Pass addresses to swap function
-    swap(&amp;x, &amp;y);
-    printf("After swap:  x = %d, y = %d\\n", x, y);
+function isUserLoggedIn() {
+  return sessionStorage.getItem(KEY_LOGGED_IN) === "true";
+}
 
-    // Dynamic array allocation
-    int *arr = (int *)malloc(5 * sizeof(int));
-    if (arr != NULL) {
-        for (int i = 0; i &lt; 5; i++) {
-            arr[i] = (i + 1) * 10;
-            printf("arr[%d] = %d\\n", i, arr[i]);
+function setLoggedInUser(user) {
+  sessionStorage.setItem(KEY_LOGGED_IN, "true");
+  sessionStorage.setItem(KEY_USER_DATA, JSON.stringify(user));
+  if (user && user.email) {
+    markUserAsRegistered(user.email);
+  }
+  updateNavUI();
+}
+
+function getCurrentUser() {
+  try {
+    const raw = sessionStorage.getItem(KEY_USER_DATA);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearSessionState() {
+  sessionStorage.removeItem(KEY_LOGGED_IN);
+  sessionStorage.removeItem(KEY_USER_DATA);
+  updateNavUI();
+}
+
+function showAuthMessage(elementId, text, type) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  if (!text) {
+    el.textContent = "";
+    el.className = "auth-message";
+    el.style.display = "none";
+    return;
+  }
+  el.textContent = text;
+  el.className = `auth-message ${type}`;
+  el.style.display = "block";
+}
+
+// ================= NAVIGATION CONTROLLER =================
+
+function updateNavUI() {
+  const loggedIn = isUserLoggedIn();
+  const user = getCurrentUser();
+
+  const protectedLinks = document.querySelectorAll(".nav-auth-protected");
+  const navLogin = document.getElementById("nav-login");
+  const navRegister = document.getElementById("nav-register");
+  const userCluster = document.getElementById("nav-user-cluster");
+  const nameDisplay = document.getElementById("user-name-display");
+  const avatarInitial = document.getElementById("user-avatar-initial");
+
+  if (loggedIn && user) {
+    // Show protected navigation items
+    protectedLinks.forEach((link) => (link.style.display = "inline-flex"));
+    if (navLogin) navLogin.style.display = "none";
+    if (navRegister) navRegister.style.display = "none";
+
+    // Show user profile pill
+    if (userCluster) userCluster.style.display = "inline-flex";
+    if (nameDisplay) nameDisplay.textContent = user.name || "Student";
+    if (avatarInitial) {
+      avatarInitial.textContent = (user.name ? user.name[0] : "S").toUpperCase();
+    }
+
+    // Update greeting on Home page
+    const heroName = document.getElementById("hero-student-name");
+    if (heroName) heroName.textContent = user.name || "Student";
+  } else {
+    // Logged out / guest
+    protectedLinks.forEach((link) => (link.style.display = "none"));
+    if (userCluster) userCluster.style.display = "none";
+
+    // If user already registered, highlight login
+    if (navLogin) navLogin.style.display = "inline-flex";
+    if (navRegister) navRegister.style.display = hasUserRegistered() ? "none" : "inline-flex";
+  }
+}
+
+function showPage(pageId) {
+  const loggedIn = isUserLoggedIn();
+
+  // Route Guard: if target page is protected and user is not logged in, enforce flow
+  if (PROTECTED_PAGES.includes(pageId) && !loggedIn) {
+    if (hasUserRegistered()) {
+      showToast("🔐 Please sign in to access your study portal.");
+      pageId = "login";
+    } else {
+      showToast("📝 Please register your student account first.");
+      pageId = "register";
+    }
+  }
+
+  // Route Guard: if user is logged in, going to login or register sends them home
+  if (loggedIn && (pageId === "login" || pageId === "register")) {
+    pageId = "home";
+  }
+
+  // Hide all pages
+  const pages = document.querySelectorAll(".page");
+  pages.forEach((p) => {
+    p.classList.remove("active");
+    p.style.display = "none";
+  });
+
+  // Display target page
+  const targetPage = document.getElementById(pageId);
+  if (targetPage) {
+    targetPage.style.display = "block";
+    targetPage.classList.add("active");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Update active navigation link
+  document.querySelectorAll(".nav-link").forEach((link) => {
+    link.classList.remove("active");
+    const href = link.getAttribute("href") || "";
+    if (href.replace("#", "") === pageId) {
+      link.classList.add("active");
+    }
+  });
+
+  updateNavUI();
+
+  // If navigating to resources or home, ensure data is fresh
+  if (pageId === "resources" || pageId === "home") {
+    fetchResources();
+    fetchLiveStats();
+  }
+  if (pageId === "admin") {
+    fetchLiveStats(true);
+  }
+}
+
+function handleLogoClick() {
+  if (isUserLoggedIn()) {
+    showPage("home");
+  } else if (hasUserRegistered()) {
+    showPage("login");
+  } else {
+    showPage("register");
+  }
+}
+
+// ================= INITIAL FLOW ROUTER =================
+
+async function initializeAppFlow() {
+  // First, verify if an active session exists on backend
+  try {
+    const res = await fetch("/api/session");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.loggedIn && data.user) {
+        setLoggedInUser(data.user);
+        showPage("home");
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn("Session check notice:", e.message);
+  }
+
+  // If not logged in on backend, verify client registration state
+  if (isUserLoggedIn()) {
+    showPage("home");
+  } else if (hasUserRegistered()) {
+    // Returning user: show Login page directly
+    showPage("login");
+    const lastEmail = localStorage.getItem(KEY_LAST_EMAIL);
+    const loginEmailInput = document.getElementById("login-email");
+    if (loginEmailInput && lastEmail) {
+      loginEmailInput.value = lastEmail;
+    }
+  } else {
+    // First time visitor: show Register page directly
+    showPage("register");
+  }
+
+  // Fetch initial resources in background
+  fetchResources();
+}
+
+// ================= REGISTRATION & LOGIN HANDLERS =================
+
+// Registration
+const registerForm = document.getElementById("register-form");
+if (registerForm) {
+  registerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById("register-name").value.trim();
+    const email = document.getElementById("register-email").value.trim();
+    const password = document.getElementById("register-password").value;
+    const submitBtn = document.getElementById("register-submit-btn");
+
+    if (!name || !email || !password) {
+      showAuthMessage("register-message", "Please fill in all fields.", "error");
+      return;
+    }
+
+    if (password.length < 6) {
+      showAuthMessage("register-message", "Password must be at least 6 characters long.", "error");
+      return;
+    }
+
+    showAuthMessage("register-message", "Creating account in Neon database...", "info");
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Mark user as registered in localStorage
+        markUserAsRegistered(email);
+
+        showAuthMessage("register-message", "✓ Registration successful! Redirecting to Sign In...", "success");
+        showToast("✓ Account created! Please sign in with your password.");
+
+        // Pre-fill email in Login form
+        const loginEmailInput = document.getElementById("login-email");
+        if (loginEmailInput) loginEmailInput.value = email;
+
+        registerForm.reset();
+
+        // Redirect to Login Page
+        setTimeout(() => {
+          showAuthMessage("register-message", "", "");
+          showPage("login");
+          showAuthMessage("login-message", "Account registered! Enter your password to log in.", "info");
+          const pwdField = document.getElementById("login-password");
+          if (pwdField) pwdField.focus();
+        }, 800);
+      } else {
+        // If email already registered, record registration and suggest login
+        if (data.message && data.message.toLowerCase().includes("already registered")) {
+          markUserAsRegistered(email);
+          const loginEmailInput = document.getElementById("login-email");
+          if (loginEmailInput) loginEmailInput.value = email;
         }
-        free(arr); // Always free allocated memory!
+        showAuthMessage("register-message", `❌ ${data.message || "Registration failed."}`, "error");
+        showToast(data.message || "Registration failed.");
+      }
+    } catch (err) {
+      showAuthMessage("register-message", "Server connection error. Please try again.", "error");
+      showToast("Server connection error.");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+}
+
+// Password strength indicator
+const registerPwdInput = document.getElementById("register-password");
+if (registerPwdInput) {
+  registerPwdInput.addEventListener("input", (e) => {
+    const val = e.target.value;
+    const bar = document.getElementById("register-pwd-strength");
+    if (!bar) return;
+
+    if (!val) {
+      bar.style.width = "0%";
+      return;
+    }
+    let strength = 0;
+    if (val.length >= 6) strength += 30;
+    if (val.length >= 10) strength += 30;
+    if (/[0-9]/.test(val)) strength += 20;
+    if (/[^A-Za-z0-9]/.test(val)) strength += 20;
+
+    bar.style.width = `${strength}%`;
+    if (strength < 50) {
+      bar.style.backgroundColor = "var(--danger)";
+    } else if (strength < 80) {
+      bar.style.backgroundColor = "var(--warning)";
+    } else {
+      bar.style.backgroundColor = "var(--success)";
+    }
+  });
+}
+
+// Login
+const loginForm = document.getElementById("login-form");
+if (loginForm) {
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    const submitBtn = document.getElementById("login-submit-btn");
+
+    if (!email || !password) {
+      showAuthMessage("login-message", "Please enter both email and password.", "error");
+      return;
     }
 
-    return 0;
-}</code></pre>
-            </div>
+    showAuthMessage("login-message", "Verifying credentials with Neon DB...", "info");
+    if (submitBtn) submitBtn.disabled = true;
 
-            <h3>6. Quick Exam & Interview Takeaways</h3>
-            <div class="note-callout">
-                <strong>⚠️ Beware of:</strong>
-                <ul>
-                    <li>Dangling pointers (referencing freed memory).</li>
-                    <li>Memory leaks (forgetting to call <code>free()</code>).</li>
-                    <li>Array index out-of-bounds (C does not perform bounds checking!).</li>
-                </ul>
-            </div>
-        `
-    },
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
 
-    "web-dev": {
-        id: "web-dev",
-        title: "🌐 HTML5 & Modern CSS - Web Development Notes",
-        subject: "Web Development",
-        readingTime: "8 min read",
-        level: "Beginner to Intermediate",
-        summary: "Comprehensive guide to HTML5 semantic structure, modern CSS styling, the Box Model, Flexbox, Grid layout systems, and responsive design media queries.",
-        content: `
-            <h3>1. Semantic HTML5 Architecture</h3>
-            <p>Semantic markup provides clear meaning to both browsers and search engines, improving accessibility (a11y) and SEO ranking.</p>
-            <ul>
-                <li><code>&lt;header&gt;</code>: Introductory content, branding, or navigational links.</li>
-                <li><code>&lt;nav&gt;</code>: Major navigational blocks.</li>
-                <li><code>&lt;main&gt;</code>: Dominant, unique content of the document body.</li>
-                <li><code>&lt;article&gt;</code>: Self-contained, independently distributable composition.</li>
-                <li><code>&lt;section&gt;</code>: Thematic grouping of content with a heading.</li>
-                <li><code>&lt;aside&gt;</code>: Content tangentially related to surrounding content (sidebars, callouts).</li>
-                <li><code>&lt;footer&gt;</code>: Authorship, copyright, and contact information.</li>
-            </ul>
+      const data = await response.json();
 
-            <h3>2. The CSS Box Model</h3>
-            <p>Every element in a web page is rendered as a rectangular box consisting of four layers:</p>
-            <ol>
-                <li><strong>Content:</strong> Text, images, or child elements.</li>
-                <li><strong>Padding:</strong> Transparent spacing between content and border.</li>
-                <li><strong>Border:</strong> Line surrounding the padding and content.</li>
-                <li><strong>Margin:</strong> Space separating the element from neighboring elements.</li>
-            </ol>
+      if (response.ok && data.success && data.user) {
+        setLoggedInUser(data.user);
+        markUserAsRegistered(email);
 
-            <div class="note-callout">
-                <strong>💡 Modern Standard:</strong> Always set <code>* { box-sizing: border-box; }</code> so padding and border are included in the element's total calculated width and height!
-            </div>
+        showAuthMessage("login-message", `✓ Welcome, ${data.user.name}! Redirecting to Home...`, "success");
+        showToast(`✓ Welcome, ${data.user.name}!`);
 
-            <h3>3. Flexbox vs. CSS Grid Cheatsheet</h3>
-            <table class="notes-table">
-                <thead>
-                    <tr>
-                        <th>Feature</th>
-                        <th>Flexbox (1-Dimensional)</th>
-                        <th>CSS Grid (2-Dimensional)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Primary Use</strong></td>
-                        <td>Components, navbars, rows or columns</td>
-                        <td>Overall page layouts, photo galleries, dashboards</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Key Parent Properties</strong></td>
-                        <td><code>display: flex</code>, <code>justify-content</code>, <code>align-items</code>, <code>gap</code></td>
-                        <td><code>display: grid</code>, <code>grid-template-columns</code>, <code>grid-template-rows</code></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Item Control</strong></td>
-                        <td><code>flex-grow</code>, <code>flex-shrink</code>, <code>flex-basis</code></td>
-                        <td><code>grid-column: span 2</code>, <code>grid-row</code></td>
-                    </tr>
-                </tbody>
-            </table>
+        loginForm.reset();
 
-            <h3>4. Modern Responsive CSS Component Example</h3>
-            <div class="code-block">
-                <div class="code-header">
-                    <span>styles.css</span>
-                    <button class="copy-code-btn" onclick="copyCodeSnippet(this)">Copy Code</button>
-                </div>
-                <pre><code>/* Responsive Card Grid with CSS Grid */
-.cards-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 24px;
-    padding: 20px;
-}
-
-/* Glassmorphism Card Style */
-.study-card {
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.study-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
-}
-
-/* Mobile Media Query */
-@media (max-width: 640px) {
-    .cards-container {
-        grid-template-columns: 1fr;
-        padding: 12px;
+        // Redirect to Home
+        setTimeout(() => {
+          showAuthMessage("login-message", "", "");
+          showPage("home");
+        }, 600);
+      } else {
+        showAuthMessage("login-message", `❌ ${data.message || "Invalid credentials."}`, "error");
+        showToast(data.message || "Login failed.");
+      }
+    } catch (err) {
+      showAuthMessage("login-message", "Login failed due to connection error.", "error");
+      showToast("Server connection error.");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
-}</code></pre>
-            </div>
-
-            <h3>5. Key Exam & Production Tips</h3>
-            <ul>
-                <li>Use REM/EM units for typography and spacing for better accessibility and zoom scalability.</li>
-                <li>Always supply descriptive <code>alt</code> text on <code>&lt;img&gt;</code> tags for screen readers.</li>
-                <li>Leverage CSS custom properties (variables) like <code>--primary-color: #2563eb;</code> for design system maintainability.</li>
-            </ul>
-        `
-    },
-
-    "aws-cloud": {
-        id: "aws-cloud",
-        title: "☁️ AWS Basics - Cloud Computing Revision Guide",
-        subject: "Cloud Computing",
-        readingTime: "9 min read",
-        level: "Intermediate",
-        summary: "High-yield revision notes on cloud architectures, service models (IaaS, PaaS, SaaS), AWS core compute, storage, networking, database services, and IAM security.",
-        content: `
-            <h3>1. Cloud Computing Fundamentals</h3>
-            <p>Cloud computing is the on-demand delivery of IT resources over the internet with pay-as-you-go pricing.</p>
-            <ul>
-                <li><strong>Six Advantages of Cloud:</strong> Trade capital expense for variable expense, benefit from massive economies of scale, stop guessing capacity, increase speed and agili[...]
-                <li><strong>Cloud Service Models:</strong>
-                    <ul>
-                        <li><strong>IaaS (Infrastructure as a Service):</strong> Highest level of control. Example: Amazon EC2, VPC.</li>
-                        <li><strong>PaaS (Platform as a Service):</strong> Focus on application code without OS/server management. Example: AWS Elastic Beanstalk.</li>
-                        <li><strong>SaaS (Software as a Service):</strong> Complete end-user application. Example: Google Workspace, Microsoft 365.</li>
-                    </ul>
-                </li>
-            </ul>
-
-            <h3>2. AWS Global Infrastructure</h3>
-            <table class="notes-table">
-                <thead>
-                    <tr>
-                        <th>Concept</th>
-                        <th>Definition</th>
-                        <th>Key Characteristics</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Region</strong></td>
-                        <td>A physical geographic location around the world</td>
-                        <td>Contains 2+ isolated Availability Zones (e.g., us-east-1, ap-south-1).</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Availability Zone (AZ)</strong></td>
-                        <td>One or more discrete data centers with redundant power &amp; networking</td>
-                        <td>Connected via low-latency private fiber optic networks.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Edge Locations</strong></td>
-                        <td>Endpoints for CloudFront (CDN) caching content closest to users</td>
-                        <td>Reduces latency for worldwide end-users.</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <h3>3. Core AWS Services Quick Reference</h3>
-            <ul>
-                <li><strong>Compute:</strong>
-                    <ul>
-                        <li><strong>Amazon EC2 (Elastic Compute Cloud):</strong> Resizable virtual server instances.</li>
-                        <li><strong>AWS Lambda:</strong> Serverless compute that runs code in response to events without provisioning servers.</li>
-                    </ul>
-                </li>
-                <li><strong>Storage:</strong>
-                    <ul>
-                        <li><strong>Amazon S3 (Simple Storage Service):</strong> Highly durable (99.999999999% durability) object storage for files, media, and backups.</li>
-                        <li><strong>Amazon EBS (Elastic Block Store):</strong> Persistent block-level storage volumes for EC2 instances.</li>
-                    </ul>
-                </li>
-                <li><strong>Networking:</strong>
-                    <ul>
-                        <li><strong>Amazon VPC (Virtual Private Cloud):</strong> Logically isolated virtual network to launch AWS resources.</li>
-                        <li><strong>Route 53:</strong> Highly available and scalable cloud Domain Name System (DNS) web service.</li>
-                    </ul>
-                </li>
-                <li><strong>Databases:</strong>
-                    <ul>
-                        <li><strong>Amazon RDS:</strong> Managed relational database (PostgreSQL, MySQL, Oracle, SQL Server).</li>
-                        <li><strong>Amazon DynamoDB:</strong> Fully managed NoSQL key-value and document database with single-digit millisecond latency.</li>
-                    </ul>
-                </li>
-            </ul>
-
-            <h3>4. Security & IAM (Identity and Access Management)</h3>
-            <div class="note-callout">
-                <strong>🔒 Golden Rules of AWS IAM:</strong>
-                <ol>
-                    <li>Never use the Root user account for everyday tasks.</li>
-                    <li>Always enforce <strong>Multi-Factor Authentication (MFA)</strong>.</li>
-                    <li>Follow the <strong>Principle of Least Privilege</strong> (grant only minimum necessary permissions).</li>
-                    <li>Use <strong>IAM Roles</strong> for AWS services to communicate securely without embedding access keys.</li>
-                </ol>
-            </div>
-
-            <div class="code-block">
-                <div class="code-header">
-                    <span>sample-iam-policy.json</span>
-                    <button class="copy-code-btn" onclick="copyCodeSnippet(this)">Copy Code</button>
-                </div>
-                <pre><code>{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::student-portal-notes",
-        "arn:aws:s3:::student-portal-notes/*"
-      ]
-    }
-  ]
-}</code></pre>
-            </div>
-        `
-    },
-
-    "java-oop": {
-        id: "java-oop",
-        title: "☕ Java OOP Concepts - Complete Revision Notes",
-        subject: "Java",
-        readingTime: "8 min read",
-        level: "Intermediate",
-        summary: "Master Object-Oriented Programming in Java: classes, objects, the four pillars of OOP (encapsulation, inheritance, polymorphism, abstraction), exception handling, and collection[...]",
-        content: `
-            <h3>1. The 4 Pillars of Object-Oriented Programming</h3>
-            <ol>
-                <li>
-                    <strong>Encapsulation:</strong> Bundling data (variables) and methods that operate on the data into a single unit (class) while restricting direct access using <code>private</
-... (file continues unchanged)
-// --- Minimal auth flow setup ---
-const AUTH_KEYS = {
-  registered: 'learnhub_registered',
-  loggedIn: 'learnhub_logged_in'
-};
-
-function isLoggedIn() {
-  return localStorage.getItem(AUTH_KEYS.loggedIn) === 'true';
+  });
 }
 
-function protectNavigation(pageName) {
-  const protectedPages = ['upload', 'admin'];
-
-  if (protectedPages.includes(pageName) && !isLoggedIn()) {
-    pageName = 'login';
+// Logout
+async function logoutUser() {
+  try {
+    await fetch("/api/logout", { method: "POST" });
+  } catch (e) {
+    console.warn("Logout notice:", e.message);
   }
 
-  return pageName;
+  clearSessionState();
+  showToast("You have been signed out.");
+
+  // Enforce returning user flow: redirect to login
+  showPage("login");
+  const lastEmail = localStorage.getItem(KEY_LAST_EMAIL);
+  const loginEmailInput = document.getElementById("login-email");
+  if (loginEmailInput && lastEmail) {
+    loginEmailInput.value = lastEmail;
+  }
 }
 
-// Preserve the existing showPage logic but wrap it for auth flow
-const originalShowPage = window.showPage;
-
-window.showPage = function(pageName) {
-  const safePage = protectNavigation(pageName);
-
-  if (typeof originalShowPage === 'function') {
-    return originalShowPage(safePage);
+function togglePasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === "password") {
+    input.type = "text";
+    btn.textContent = "🙈";
+  } else {
+    input.type = "password";
+    btn.textContent = "👁️";
   }
+}
 
-  const allPages = document.querySelectorAll('.page');
-  allPages.forEach(page => page.classList.remove('active'));
+// ================= STUDY RESOURCES CONTROLLER =================
 
-  const target = document.getElementById(safePage);
-  if (target) target.classList.add('active');
-};
+async function fetchResources() {
+  try {
+    const res = await fetch("/api/resources");
+    if (res.ok) {
+      const data = await res.json();
+      allResources = data;
+      renderResourcesGrid();
+      renderHomeTrending();
+    }
+  } catch (err) {
+    console.warn("Could not fetch resources from backend:", err.message);
+  }
+}
 
-// Default landing page
-document.addEventListener('DOMContentLoaded', function () {
-  const justRegistered = localStorage.getItem(AUTH_KEYS.registered) === 'true';
-  const loggedIn = isLoggedIn();
+function renderResourcesGrid() {
+  const container = document.getElementById("resources-grid-container");
+  if (!container) return;
 
-  if (loggedIn) {
-    window.showPage('home');
+  const searchQuery = (document.getElementById("resource-search-input")?.value || "").toLowerCase().trim();
+
+  const filtered = allResources.filter((item) => {
+    const matchesSubject =
+      activeSubjectFilter === "all" ||
+      item.subject.toLowerCase() === activeSubjectFilter.toLowerCase();
+
+    const matchesSearch =
+      !searchQuery ||
+      item.title.toLowerCase().includes(searchQuery) ||
+      item.subject.toLowerCase().includes(searchQuery) ||
+      item.summary.toLowerCase().includes(searchQuery) ||
+      (item.content && item.content.toLowerCase().includes(searchQuery));
+
+    return matchesSubject && matchesSearch;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--text-dim);">
+        <div style="font-size: 48px; margin-bottom: 12px;">🔍</div>
+        <h3>No resources match your search</h3>
+        <p style="margin-top: 6px;">Try adjusting your keyword or resetting subject filters.</p>
+        <button class="btn-secondary btn-sm" style="margin-top: 16px;" onclick="resetResourceFilters()">Reset Filters</button>
+      </div>
+    `;
     return;
   }
 
-  if (justRegistered) {
-    window.showPage('login');
-    return;
-  }
+  container.innerHTML = filtered
+    .map(
+      (item) => `
+    <div class="resource-card">
+      <div>
+        <div class="card-top-tags">
+          <span class="subject-badge">${escapeHtml(item.subject)}</span>
+          <span class="reading-pill">⏱️ ${escapeHtml(item.reading_time || "5 min read")}</span>
+        </div>
+        <h3>${escapeHtml(item.title)}</h3>
+        <p>${escapeHtml(item.summary)}</p>
+      </div>
 
-  window.showPage('register');
+      <div class="resource-card-actions">
+        <button class="btn-primary btn-sm btn-block" onclick="openNotesModal('${item.id}')">
+          📖 Read Notes
+        </button>
+        <button class="btn-secondary btn-sm" onclick="downloadResourceText('${item.id}')" title="Download text notes">
+          ⬇️
+        </button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+}
+
+function renderHomeTrending() {
+  const container = document.getElementById("home-featured-resources");
+  if (!container) return;
+
+  const featured = allResources.slice(0, 3);
+  container.innerHTML = featured
+    .map(
+      (item) => `
+    <div class="resource-card">
+      <div>
+        <div class="card-top-tags">
+          <span class="subject-badge">${escapeHtml(item.subject)}</span>
+          <span class="reading-pill">⏱️ ${escapeHtml(item.reading_time || "5 min read")}</span>
+        </div>
+        <h3>${escapeHtml(item.title)}</h3>
+        <p>${escapeHtml(item.summary)}</p>
+      </div>
+
+      <div class="resource-card-actions">
+        <button class="btn-primary btn-sm btn-block" onclick="openNotesModal('${item.id}')">
+          📖 Read Notes
+        </button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+}
+
+// Subject filter buttons
+document.querySelectorAll(".filter-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll(".filter-chip").forEach((c) => c.classList.remove("active"));
+    chip.classList.add("active");
+    activeSubjectFilter = chip.getAttribute("data-subject") || "all";
+    renderResourcesGrid();
+  });
 });
 
-// ================= REGISTER PAGE FIX =================
+// Search input
+const searchInput = document.getElementById("resource-search-input");
+if (searchInput) {
+  searchInput.addEventListener("input", () => {
+    renderResourcesGrid();
+  });
+}
 
-document.addEventListener("DOMContentLoaded", function () {
-    const registerForm = document.getElementById("register-form");
-    const passwordInput = document.getElementById("register-password");
-    const confirmPasswordInput = document.getElementById("register-confirm-password");
-    const registerMessage = document.getElementById("register-message");
-    const submitButton = document.getElementById("register-submit-btn");
-    const strengthText = document.getElementById("password-strength-text");
-    const strengthBar = document.getElementById("password-strength-bar");
-    const confirmMessage = document.getElementById("confirm-password-message");
+function resetResourceFilters() {
+  activeSubjectFilter = "all";
+  document.querySelectorAll(".filter-chip").forEach((c) => {
+    if (c.getAttribute("data-subject") === "all") c.classList.add("active");
+    else c.classList.remove("active");
+  });
+  const input = document.getElementById("resource-search-input");
+  if (input) input.value = "";
+  renderResourcesGrid();
+}
 
-    // Show or hide passwords
-    document.querySelectorAll(".password-toggle").forEach(function (button) {
-        button.addEventListener("click", function () {
-            const targetId = button.getAttribute("data-password-target");
-            const input = document.getElementById(targetId);
+// ================= NOTES READER MODAL =================
 
-            if (!input) return;
+function openNotesModal(resourceId) {
+  const resource = allResources.find((r) => r.id === resourceId);
+  if (!resource) return;
 
-            const showPassword = input.type === "password";
-            input.type = showPassword ? "text" : "password";
-            button.textContent = showPassword ? "Hide" : "Show";
-            button.setAttribute("aria-pressed", String(showPassword));
-            button.setAttribute(
-                "aria-label",
-                showPassword ? "Hide password" : "Show password"
-            );
-        });
+  currentModalResource = resource;
+
+  const modal = document.getElementById("notes-modal");
+  document.getElementById("modal-title").textContent = resource.title;
+  document.getElementById("modal-subject").textContent = resource.subject;
+  document.getElementById("modal-reading-time").textContent = `⏱️ ${resource.reading_time || "5 min read"}`;
+  document.getElementById("modal-level").textContent = `🎯 ${resource.level || "Core Syllabus"}`;
+  document.getElementById("modal-summary").textContent = resource.summary;
+  document.getElementById("modal-content").innerHTML = resource.content || `<p>${resource.summary}</p>`;
+
+  modal.style.display = "flex";
+  document.body.style.overflow = "hidden"; // lock background scroll
+}
+
+function closeNotesModal() {
+  const modal = document.getElementById("notes-modal");
+  if (modal) modal.style.display = "none";
+  document.body.style.overflow = "";
+  currentModalResource = null;
+}
+
+// Close on backdrop click
+const modalBackdrop = document.getElementById("notes-modal");
+if (modalBackdrop) {
+  modalBackdrop.addEventListener("click", (e) => {
+    if (e.target === modalBackdrop) {
+      closeNotesModal();
+    }
+  });
+}
+
+// Close on Escape key
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    closeNotesModal();
+  }
+});
+
+// Modal Actions
+function copyModalNotes() {
+  if (!currentModalResource) return;
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = currentModalResource.content;
+  const plainText = `${currentModalResource.title}\nSubject: ${currentModalResource.subject}\n\n${tempDiv.textContent || tempDiv.innerText}`;
+
+  navigator.clipboard.writeText(plainText).then(
+    () => showToast("📋 Notes copied to clipboard!"),
+    () => showToast("Failed to copy notes.")
+  );
+}
+
+function downloadModalNotes() {
+  if (!currentModalResource) return;
+  downloadResourceText(currentModalResource.id);
+}
+
+function downloadResourceText(resourceId) {
+  const res = allResources.find((r) => r.id === resourceId);
+  if (!res) return;
+
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = res.content;
+  const contentText = `${res.title}\nSubject: ${res.subject}\nLevel: ${res.level}\n=========================================\n\nSummary:\n${res.summary}\n\nDetailed Course Notes:\n${tempDiv.textContent || tempDiv.innerText}\n\n---\nExported from StudyPortal Pro (Academic 2026)`;
+
+  const blob = new Blob([contentText], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${res.title.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}_notes.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("⬇️ Notes downloaded successfully!");
+}
+
+function printModalNotes() {
+  window.print();
+}
+
+// ================= AI STUDY ASSISTANT =================
+
+function handleAiChipClick(promptText) {
+  const input = document.getElementById("ai-query-input");
+  if (input) {
+    input.value = promptText;
+    document.getElementById("ai-search-form")?.requestSubmit();
+  }
+}
+
+function handleAiSearchSubmit(e) {
+  e.preventDefault();
+  const input = document.getElementById("ai-query-input");
+  const query = (input?.value || "").trim().toLowerCase();
+  const resultsContainer = document.getElementById("ai-results-container");
+
+  if (!query || !resultsContainer) return;
+
+  resultsContainer.innerHTML = `
+    <div style="text-align: center; padding: 30px 20px;">
+      <div style="font-size: 32px; animation: spin 1s infinite linear; display: inline-block;">⚙️</div>
+      <h3 style="margin-top: 14px; font-size: 18px;">Analyzing syllabus notes with AI assistant...</h3>
+      <p style="color: var(--text-dim); font-size: 13px;">Searching indexed topics and generating concept summary</p>
+    </div>
+  `;
+
+  setTimeout(() => {
+    // Search indexed resources
+    const matched = allResources.filter((item) => {
+      return (
+        item.title.toLowerCase().includes(query) ||
+        item.subject.toLowerCase().includes(query) ||
+        item.summary.toLowerCase().includes(query) ||
+        (item.content && item.content.toLowerCase().includes(query))
+      );
     });
 
-    if (!registerForm) return;
+    if (matched.length > 0) {
+      const topMatch = matched[0];
+      resultsContainer.innerHTML = `
+        <div style="animation: fadeIn 0.3s ease;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <span class="subject-badge">🤖 AI Synthesized Answer</span>
+            <span style="font-size: 12px; color: #34d399; font-weight: 700;">✓ Matched Syllabus Notes</span>
+          </div>
+          
+          <h2 style="font-family: var(--font-heading); font-size: 22px; margin-bottom: 10px;">
+            ${escapeHtml(topMatch.title)}
+          </h2>
+          
+          <div class="modal-callout" style="margin-bottom: 18px;">
+            <strong>Core Concept:</strong>
+            <p style="margin-top: 4px; font-size: 14px; color: #e2e8f0;">${escapeHtml(topMatch.summary)}</p>
+          </div>
 
-    // Password strength indicator
-    if (passwordInput) {
-        passwordInput.addEventListener("input", function () {
-            const password = passwordInput.value;
-            let strength = 0;
+          <div style="background: rgba(11, 15, 25, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px;">
+            <h4 style="color: #818cf8; font-size: 14px; font-weight: 700; margin-bottom: 8px;">Key Takeaways for Exams:</h4>
+            <ul style="padding-left: 20px; font-size: 13.5px; color: #cbd5e1; line-height: 1.6;">
+              <li>Understand the fundamental differences and theoretical limits of the topic.</li>
+              <li>Review the memory architecture and time-complexity implications.</li>
+              <li>Verify proper syntax conventions and common edge cases.</li>
+            </ul>
+          </div>
 
-            if (password.length >= 8) strength++;
-            if (/[A-Z]/.test(password)) strength++;
-            if (/[a-z]/.test(password)) strength++;
-            if (/[0-9]/.test(password)) strength++;
-            if (/[^A-Za-z0-9]/.test(password)) strength++;
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <button class="btn-primary btn-sm" onclick="openNotesModal('${topMatch.id}')">
+              📖 Read Full ${escapeHtml(topMatch.subject)} Notes
+            </button>
+            <button class="btn-secondary btn-sm" onclick="downloadResourceText('${topMatch.id}')">
+              ⬇️ Save Summary (.txt)
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      resultsContainer.innerHTML = `
+        <div style="animation: fadeIn 0.3s ease;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+            <span class="subject-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3);">🤖 AI Assistant Insight</span>
+          </div>
 
-            const labels = [
-                "Use at least 8 characters.",
-                "Very weak",
-                "Weak",
-                "Fair",
-                "Good",
-                "Strong"
-            ];
+          <h3 style="font-size: 20px; margin-bottom: 10px;">Overview: "${escapeHtml(input.value)}"</h3>
+          <p style="color: #cbd5e1; font-size: 14.5px; line-height: 1.6; margin-bottom: 16px;">
+            In computer science and software engineering, understanding <strong>${escapeHtml(input.value)}</strong> requires mastering both the conceptual model and implementation mechanics. We recommend referencing related modules in our library:
+          </p>
 
-            if (strengthText) {
-                strengthText.textContent = labels[strength];
-            }
-
-            if (strengthBar) {
-                strengthBar.style.width = (strength * 20) + "%";
-            }
-        });
+          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            <button class="btn-secondary btn-sm" onclick="showPage('resources')">📚 Explore C Programming</button>
+            <button class="btn-secondary btn-sm" onclick="showPage('resources')">📚 Explore Data Structures</button>
+            <button class="btn-secondary btn-sm" onclick="showPage('resources')">📚 Explore Web Dev</button>
+          </div>
+        </div>
+      `;
     }
+  }, 400);
+}
 
-    // Confirm password
-    if (confirmPasswordInput) {
-        confirmPasswordInput.addEventListener("input", function () {
-            const matches = confirmPasswordInput.value === passwordInput.value;
+// ================= UPLOAD CONTROLLER =================
 
-            if (confirmMessage) {
-                confirmMessage.textContent = matches
-                    ? "Passwords match."
-                    : "Passwords do not match.";
-            }
+let selectedUploadFile = null;
 
-            confirmPasswordInput.setCustomValidity(
-                matches ? "" : "Passwords do not match."
-            );
-        });
+function handleFileSelected(input) {
+  if (input.files && input.files[0]) {
+    selectedUploadFile = input.files[0];
+    const nameEl = document.getElementById("dropzone-file-name");
+    if (nameEl) {
+      nameEl.textContent = `Attached: ${selectedUploadFile.name} (${(selectedUploadFile.size / 1024).toFixed(1)} KB)`;
+      nameEl.style.color = "#34d399";
     }
+  }
+}
 
-    // Register account
-    registerForm.addEventListener("submit", async function (event) {
-        event.preventDefault();
-
-        const name = document.getElementById("register-name").value.trim();
-        const email = document.getElementById("register-email").value.trim();
-        const password = passwordInput.value;
-        const confirmPassword = confirmPasswordInput.value;
-
-        if (registerMessage) {
-            registerMessage.textContent = "";
-        }
-
-        if (password.length < 8) {
-            if (registerMessage) {
-                registerMessage.textContent =
-                    "Your password must contain at least 8 characters.";
-            }
-            return;
-        }
-
-        if (password.length > 72) {
-            if (registerMessage) {
-                registerMessage.textContent =
-                    "Your password is too long. Please use at most 72 characters.";
-            }
-            return;
-        }
-
-        if (password !== confirmPassword) {
-            if (registerMessage) {
-                registerMessage.textContent = "Passwords do not match.";
-            }
-            return;
-        }
-
-        const originalButtonText = submitButton.innerHTML;
-        submitButton.disabled = true;
-        submitButton.innerHTML = "<span>Creating account...</span>";
-
-        try {
-            const response = await fetch("/api/register", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    name: name,
-                    email: email,
-                    password: password
-                })
-            });
-
-            const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                throw new Error(result.message || "Registration failed.");
-            }
-
-            if (registerMessage) {
-                registerMessage.textContent =
-                    "Registration successful! Please sign in.";
-            }
-
-            // Mark registration and navigate to Login
-            localStorage.setItem("learnhub_registered", "true");
-            localStorage.setItem("learnhub_justRegistered", "true");
-
-            setTimeout(function () {
-                if (typeof window.showPage === "function") {
-                    window.showPage("login");
-                }
-            }, 1000);
-
-        } catch (error) {
-            if (registerMessage) {
-                registerMessage.textContent =
-                    error.message || "Something went wrong. Please try again.";
-            }
-        } finally {
-            submitButton.disabled = false;
-            submitButton.innerHTML = originalButtonText;
-        }
+// Drag & drop support
+const dropzone = document.getElementById("upload-dropzone");
+if (dropzone) {
+  ["dragenter", "dragover"].forEach((eventName) => {
+    dropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("drag-over");
     });
+  });
+  ["dragleave", "drop"].forEach((eventName) => {
+    dropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("drag-over");
+    });
+  });
+  dropzone.addEventListener("drop", (e) => {
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      selectedUploadFile = e.dataTransfer.files[0];
+      const nameEl = document.getElementById("dropzone-file-name");
+      if (nameEl) {
+        nameEl.textContent = `Attached: ${selectedUploadFile.name} (${(selectedUploadFile.size / 1024).toFixed(1)} KB)`;
+        nameEl.style.color = "#34d399";
+      }
+    }
+  });
+}
+
+async function handleUploadSubmit(e) {
+  e.preventDefault();
+
+  const title = document.getElementById("upload-title").value.trim();
+  const subject = document.getElementById("upload-subject").value;
+  const description = document.getElementById("upload-description").value.trim();
+  const submitBtn = document.getElementById("upload-submit-btn");
+
+  if (!title || !description) {
+    showAuthMessage("upload-feedback", "Please enter a title and description.", "error");
+    return;
+  }
+
+  showAuthMessage("upload-feedback", "Publishing resource to Neon PostgreSQL database...", "info");
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("subject", subject);
+    formData.append("description", description);
+    if (selectedUploadFile) {
+      formData.append("resourceFile", selectedUploadFile);
+    }
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      showAuthMessage("upload-feedback", "✓ Resource published to portal database successfully!", "success");
+      showToast("✓ Resource uploaded and published!");
+
+      // Refresh resources
+      fetchResources();
+      fetchLiveStats();
+
+      // Reset form
+      document.getElementById("upload-form").reset();
+      selectedUploadFile = null;
+      const nameEl = document.getElementById("dropzone-file-name");
+      if (nameEl) {
+        nameEl.textContent = "Click or Drag & Drop File Here";
+        nameEl.style.color = "";
+      }
+
+      setTimeout(() => {
+        showAuthMessage("upload-feedback", "", "");
+        showPage("resources");
+      }, 1200);
+    } else {
+      showAuthMessage("upload-feedback", `❌ ${data.message || "Upload failed."}`, "error");
+    }
+  } catch (err) {
+    showAuthMessage("upload-feedback", "Failed to connect to backend server.", "error");
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+// ================= LIVE STATS & ADMIN =================
+
+async function fetchLiveStats(showNotification = false) {
+  try {
+    const res = await fetch("/api/stats");
+    if (res.ok) {
+      const stats = await res.json();
+
+      const userEl = document.getElementById("dash-stat-users");
+      const resEl = document.getElementById("dash-stat-resources");
+      const subEl = document.getElementById("dash-stat-subjects");
+      const readEl = document.getElementById("dash-stat-reads");
+
+      const adminUserEl = document.getElementById("admin-user-count");
+      const adminResEl = document.getElementById("admin-res-count");
+
+      if (userEl) userEl.textContent = `${stats.users}+`;
+      if (resEl) resEl.textContent = stats.resources;
+      if (subEl) subEl.textContent = stats.subjects;
+      if (readEl) readEl.textContent = stats.reads || "2.4k+";
+
+      if (adminUserEl) adminUserEl.textContent = stats.users;
+      if (adminResEl) adminResEl.textContent = stats.resources;
+
+      if (showNotification) {
+        showToast("✓ Live Neon metrics refreshed successfully.");
+      }
+    }
+  } catch (e) {
+    console.warn("Stats fetch notice:", e.message);
+  }
+}
+
+// ================= TOAST SYSTEM =================
+
+function showToast(message) {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(10px)";
+    toast.style.transition = "all 0.3s ease";
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, 3500);
+}
+
+// Helper: Escape HTML strings to prevent XSS
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ================= BOOTSTRAP ON LOAD =================
+
+document.addEventListener("DOMContentLoaded", () => {
+  initializeAppFlow();
 });

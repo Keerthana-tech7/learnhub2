@@ -129,9 +129,24 @@ function updateNavUI() {
     if (navLogin) navLogin.style.display = "inline-flex";
     if (navRegister) navRegister.style.display = hasUserRegistered() ? "none" : "inline-flex";
   }
+
+  // Update visibility of Navbar Back Button
+  const navBackBtn = document.getElementById("nav-back-btn");
+  if (navBackBtn) {
+    const isSubPage = currentPageId && currentPageId !== "home" && currentPageId !== "register";
+    if (navigationHistory.length > 0 || isSubPage) {
+      navBackBtn.style.display = "inline-flex";
+    } else {
+      navBackBtn.style.display = "none";
+    }
+  }
 }
 
-function showPage(pageId) {
+// Navigation History Stack
+const navigationHistory = [];
+let currentPageId = null;
+
+function showPage(pageId, pushToHistory = true) {
   const loggedIn = isUserLoggedIn();
   const user = getCurrentUser();
 
@@ -160,6 +175,17 @@ function showPage(pageId) {
   // Route Guard: if user is logged in, going to login or register sends them home
   if (loggedIn && (pageId === "login" || pageId === "register")) {
     pageId = "home";
+  }
+
+  // Record history if navigating to a different page
+  if (pushToHistory && currentPageId && currentPageId !== pageId) {
+    navigationHistory.push(currentPageId);
+  }
+  currentPageId = pageId;
+
+  // Sync hash in browser URL
+  if (window.location.hash.replace("#", "") !== pageId) {
+    window.history.pushState({ pageId }, "", `#${pageId}`);
   }
 
   // Hide all pages
@@ -194,6 +220,34 @@ function showPage(pageId) {
     fetchLiveStats();
   }
 }
+
+function navigateBack() {
+  if (navigationHistory.length > 0) {
+    const prevPage = navigationHistory.pop();
+    showPage(prevPage, false);
+  } else {
+    // If no stack, fall back gracefully
+    if (isUserLoggedIn()) {
+      if (currentPageId !== "home") {
+        showPage("home", false);
+      } else if (window.history.length > 1) {
+        window.history.back();
+      }
+    } else if (hasUserRegistered()) {
+      showPage("login", false);
+    } else {
+      showPage("register", false);
+    }
+  }
+}
+
+// Support browser Back/Forward buttons
+window.addEventListener("popstate", () => {
+  const hash = window.location.hash.replace("#", "");
+  if (hash && document.getElementById(hash)) {
+    showPage(hash, false);
+  }
+});
 
 function handleLogoClick() {
   if (isUserLoggedIn()) {

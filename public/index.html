@@ -18,19 +18,26 @@
   <!-- ================= HEADER & NAVIGATION ================= -->
   <header>
     <nav class="navbar">
-      <a class="logo" onclick="handleLogoClick()">
-        <div class="logo-symbol">
-          <svg class="icon icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
-            <path d="M6 6h10M6 10h10"/>
-          </svg>
-        </div>
-        <div class="logo-text">StudyPortal</div>
-        <span class="logo-badge">
-          <span class="status-dot-solid"></span>
-          PRO
-        </span>
-      </a>
+      <div class="nav-brand-group">
+        <button class="nav-back-btn" id="nav-back-btn" onclick="navigateBack()" title="Back to previous page" style="display: none;">
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Back</span>
+        </button>
+
+        <a class="logo" onclick="handleLogoClick()">
+          <div class="logo-symbol">
+            <svg class="icon icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+              <path d="M6 6h10M6 10h10"/>
+            </svg>
+          </div>
+          <div class="logo-text">StudyPortal</div>
+          <span class="logo-badge">
+            <span class="status-dot-solid"></span>
+            PRO
+          </span>
+        </a>
+      </div>
 
       <!-- Main Navigation Links with Clean SVG Icons -->
       <div class="nav-links" id="main-nav">
@@ -505,9 +512,15 @@
     <!-- ================= PAGE 4: RESOURCES LIBRARY (Protected) ================= -->
     <section id="resources" class="page">
       <div class="page-header-box">
-        <div class="kicker-pill">
-          <span class="status-dot-solid"></span>
-          <span>Coursework Repository</span>
+        <div class="page-header-actions-row">
+          <button class="btn-back" onclick="navigateBack()" title="Back to previous page">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Back</span>
+          </button>
+          <div class="kicker-pill">
+            <span class="status-dot-solid"></span>
+            <span>Coursework Repository</span>
+          </div>
         </div>
         <h1>Study Modules & Syllabus Library</h1>
         <p>Verified lecture summaries, exam reference sheets, and implementation examples across technical curricula.</p>
@@ -543,9 +556,15 @@
     <!-- ================= PAGE 5: AI STUDY ASSISTANT (Protected) ================= -->
     <section id="ai-search" class="page">
       <div class="page-header-box">
-        <div class="kicker-pill">
-          <span class="status-dot-solid"></span>
-          <span>Intelligent Tutoring</span>
+        <div class="page-header-actions-row">
+          <button class="btn-back" onclick="navigateBack()" title="Back to previous page">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Back</span>
+          </button>
+          <div class="kicker-pill">
+            <span class="status-dot-solid"></span>
+            <span>Intelligent Tutoring</span>
+          </div>
         </div>
         <h1>AI Syllabus Search & Concept Explainer</h1>
         <p>Query conceptual questions in plain language to generate syllabus-aligned breakdowns, code implementations, and memory models.</p>
@@ -606,9 +625,15 @@
     <!-- ================= PAGE 6: UPLOAD NOTES (Protected) ================= -->
     <section id="upload" class="page">
       <div class="page-header-box">
-        <div class="kicker-pill">
-          <span class="status-dot-solid"></span>
-          <span>Peer Collaboration</span>
+        <div class="page-header-actions-row">
+          <button class="btn-back" onclick="navigateBack()" title="Back to previous page">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Back</span>
+          </button>
+          <div class="kicker-pill">
+            <span class="status-dot-solid"></span>
+            <span>Peer Collaboration</span>
+          </div>
         </div>
         <h1>Contribute Study Materials</h1>
         <p>Share coursework notes, revision summaries, and lab implementations with the student cohort.</p>
@@ -679,9 +704,15 @@
     <!-- ================= PAGE 7: ADMIN CONSOLE (STRICTLY RESTRICTED TO ADMINS) ================= -->
     <section id="admin" class="page">
       <div class="page-header-box">
-        <div class="admin-header-badge">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>Administrative Access Only</span>
+        <div class="page-header-actions-row">
+          <button class="btn-back" onclick="navigateBack()" title="Back to previous page">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Back</span>
+          </button>
+          <div class="admin-header-badge">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>Administrative Access Only</span>
+          </div>
         </div>
         <h1>Platform Management & Diagnostics</h1>
         <p>Manage user accounts, regulate uploaded coursework materials, and monitor Neon cloud database connectivity.</p>
@@ -819,6 +850,10 @@
         </div>
 
         <div class="modal-header-actions">
+          <button class="modal-action-btn modal-back-btn" onclick="closeNotesModal()" title="Back to coursework library">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Back</span>
+          </button>
           <button class="modal-action-btn" onclick="copyModalNotes()" title="Copy notes to clipboard">
             <svg class="icon" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
             <span>Copy Text</span>

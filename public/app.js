@@ -894,8 +894,36 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+// ================= THEME CONTROLLER (DEFAULT: LIGHT) =================
+
+function initTheme() {
+  const saved = localStorage.getItem("studyportal_theme") || "light";
+  document.documentElement.setAttribute("data-theme", saved);
+  updateThemeIcon(saved);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "light";
+  const next = current === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("studyportal_theme", next);
+  updateThemeIcon(next);
+  showToast(next === "light" ? "☀️ Light theme active" : "🌙 Dark theme active");
+}
+
+function updateThemeIcon(theme) {
+  const btn = document.getElementById("theme-toggle-btn");
+  if (btn) {
+    btn.innerHTML = theme === "dark" ? "☀️ Mode" : "🌙 Mode";
+  }
+}
+
+// Immediately apply theme before rendering
+initTheme();
+
 // ================= BOOTSTRAP ON LOAD =================
 
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
   initializeAppFlow();
 });

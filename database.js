@@ -39,14 +39,35 @@ const pool = new Pool({
     rejectUnauthorized: false
   },
   max: 10,
-  idleTimeoutMillis: 30000,
+  idleTimeoutMillis: 15000,
   connectionTimeoutMillis: 10000
 });
 
-// SQL tagged template literal & standard query function
+pool.on("error", (err) => {
+  console.warn("Notice: Neon pool idle connection refreshed:", err.message);
+});
+
+// SQL tagged template literal & standard query function with auto-retry
+async function executeQuery(queryText, values) {
+  try {
+    const res = await pool.query(queryText, values);
+    return res.rows;
+  } catch (err) {
+    if (
+      err.message.includes("Connection terminated") ||
+      err.message.includes("socket hang up") ||
+      err.message.includes("closed")
+    ) {
+      const res = await pool.query(queryText, values);
+      return res.rows;
+    }
+    throw err;
+  }
+}
+
 function sql(strings, ...values) {
   if (typeof strings === "string") {
-    return pool.query(strings, values).then((res) => res.rows);
+    return executeQuery(strings, values);
   }
 
   // Handle tagged template literal: sql`SELECT * FROM users WHERE email = ${email}`
@@ -58,7 +79,7 @@ function sql(strings, ...values) {
     }
   }
 
-  return pool.query(queryText, values).then((res) => res.rows);
+  return executeQuery(queryText, values);
 }
 
 sql.pool = pool;

@@ -38,6 +38,28 @@ const upload = multer({
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Normalize requests: support both /api/endpoint and /endpoint on serverless
+app.use((req, res, next) => {
+  if (
+    !req.url.startsWith("/api") &&
+    (
+      req.url.startsWith("/register") ||
+      req.url.startsWith("/login") ||
+      req.url.startsWith("/logout") ||
+      req.url.startsWith("/session") ||
+      req.url.startsWith("/resources") ||
+      req.url.startsWith("/stats") ||
+      req.url.startsWith("/health") ||
+      req.url.startsWith("/upload") ||
+      req.url.startsWith("/admin")
+    )
+  ) {
+    req.url = "/api" + req.url;
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 // Session management

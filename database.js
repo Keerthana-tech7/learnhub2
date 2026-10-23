@@ -3,39 +3,41 @@ const dns = require("dns");
 const { Pool } = require("pg");
 const bcrypt = require("bcryptjs");
 
-// Ensure Neon host can resolve even if local network DNS refuses or blocks it
-const originalLookup = dns.lookup;
-try {
-  dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
-} catch (e) {
-  console.warn("Could not set custom DNS servers:", e.message);
-}
+// Default Neon connection string provided by user
+const NEON_DEFAULT_URL = "postgresql://neondb_owner:npg_YX1NqfCu0Whc@ep-lingering-night-b4ed5h7r-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+const connectionString = process.env.DATABASE_URL || NEON_DEFAULT_URL;
 
-dns.lookup = function (hostname, options, callback) {
-  if (typeof options === "function") {
-    callback = options;
-    options = {};
+// Ensure Neon host can resolve even if local network DNS refuses or blocks it (local only)
+if (!process.env.VERCEL) {
+  const originalLookup = dns.lookup;
+  try {
+    dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
+  } catch (e) {
+    console.warn("Could not set custom DNS servers:", e.message);
   }
-  dns.resolve4(hostname, (err, addresses) => {
-    if (err || !addresses || addresses.length === 0) {
-      return originalLookup(hostname, options, callback);
-    }
-    if (options && options.all) {
-      return callback(
-        null,
-        addresses.map((a) => ({ address: a, family: 4 }))
-      );
-    }
-    callback(null, addresses[0], 4);
-  });
-};
 
-if (!process.env.DATABASE_URL) {
-  console.error("WARNING: DATABASE_URL environment variable is missing.");
+  dns.lookup = function (hostname, options, callback) {
+    if (typeof options === "function") {
+      callback = options;
+      options = {};
+    }
+    dns.resolve4(hostname, (err, addresses) => {
+      if (err || !addresses || addresses.length === 0) {
+        return originalLookup(hostname, options, callback);
+      }
+      if (options && options.all) {
+        return callback(
+          null,
+          addresses.map((a) => ({ address: a, family: 4 }))
+        );
+      }
+      callback(null, addresses[0], 4);
+    });
+  };
 }
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: connectionString,
   ssl: {
     rejectUnauthorized: false
   },

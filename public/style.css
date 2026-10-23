@@ -55,29 +55,6 @@
   --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Optional Dark Theme class for seamless toggling */
-[data-theme="dark"] {
-  --bg-dark: #070a12;
-  --bg-canvas: #0b0f19;
-  --bg-card: rgba(15, 23, 42, 0.75);
-  --bg-card-hover: rgba(26, 35, 60, 0.88);
-  --bg-glass: rgba(255, 255, 255, 0.04);
-  --bg-glass-heavy: rgba(13, 20, 36, 0.85);
-
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-glow: rgba(99, 102, 241, 0.35);
-  --border-focus: #6366f1;
-
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-
-  --grad-hero: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.45);
-  --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.25);
-}
 
 /* Base Reset & Layout */
 * {
@@ -247,25 +224,6 @@ header {
   gap: 10px;
 }
 
-.theme-toggle-btn {
-  background: #f1f5f9;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-main);
-  padding: 7px 12px;
-  border-radius: var(--radius-full);
-  font-size: 14px;
-  cursor: pointer;
-  transition: var(--transition);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-}
-
-.theme-toggle-btn:hover {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
-}
 
 .user-pill {
   display: inline-flex;

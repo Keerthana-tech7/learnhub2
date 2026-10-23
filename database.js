@@ -1,6 +1,7 @@
 require("dotenv").config();
 const dns = require("dns");
 const { Pool } = require("pg");
+const bcrypt = require("bcryptjs");
 
 // Ensure Neon host can resolve even if local network DNS refuses or blocks it
 const originalLookup = dns.lookup;
@@ -85,27 +86,31 @@ function sql(strings, ...values) {
 sql.pool = pool;
 sql.query = (text, params) => pool.query(text, params);
 
-// Initialize DB schema & default seed resources
+// Initialize DB schema, roles & default admin account
 async function initDB() {
   try {
-    // 1. Create users table if not exists & ensure created_at column exists
+    // 1. Create users table if not exists
     await sql`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
+        role TEXT DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
 
+    // Ensure columns exist on pre-existing table
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user'`;
+    } catch (e) {}
+
     try {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
-    } catch (colErr) {
-      // Ignore if column already exists or ALTER not permitted
-    }
+    } catch (e) {}
 
-    // 2. Create resources table for persistent uploads and study notes
+    // 2. Create resources table
     await sql`
       CREATE TABLE IF NOT EXISTS resources (
         id TEXT PRIMARY KEY,
@@ -121,7 +126,25 @@ async function initDB() {
       )
     `;
 
-    console.log("✓ Neon PostgreSQL connected: `users` & `resources` tables verified.");
+    // 3. Ensure master admin account exists
+    const adminEmail = "admin@studyportal.edu";
+    const existingAdmin = await sql`
+      SELECT id, role FROM users WHERE LOWER(email) = LOWER(${adminEmail})
+    `;
+
+    if (existingAdmin.length === 0) {
+      const hashedAdminPassword = bcrypt.hashSync("adminpassword123", 10);
+      await sql`
+        INSERT INTO users (name, email, password, role)
+        VALUES ('System Administrator', ${adminEmail}, ${hashedAdminPassword}, 'admin')
+      `;
+      console.log("✓ Master administrator initialized: admin@studyportal.edu / adminpassword123");
+    } else if (existingAdmin[0].role !== "admin") {
+      await sql`UPDATE users SET role = 'admin' WHERE id = ${existingAdmin[0].id}`;
+      console.log("✓ Existing admin user role updated to 'admin'.");
+    }
+
+    console.log("✓ Neon PostgreSQL connected: `users` (with role-based access) & `resources` tables verified.");
   } catch (err) {
     console.error("Database initialization notice:", err.message);
   }

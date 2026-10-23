@@ -377,10 +377,11 @@ app.post("/api/register", async (req, res) => {
 
     const hashedPassword = bcrypt.hashSync(password, 10);
 
+    const assignedRole = cleanEmail === "admin@studyportal.edu" ? "admin" : "user";
     const inserted = await sql`
-      INSERT INTO users (name, email, password)
-      VALUES (${cleanName}, ${cleanEmail}, ${hashedPassword})
-      RETURNING id, name, email
+      INSERT INTO users (name, email, password, role)
+      VALUES (${cleanName}, ${cleanEmail}, ${hashedPassword}, ${assignedRole})
+      RETURNING id, name, email, role
     `;
 
     const newUser = inserted[0];
@@ -390,7 +391,8 @@ app.post("/api/register", async (req, res) => {
       user: {
         id: newUser.id,
         name: newUser.name,
-        email: newUser.email
+        email: newUser.email,
+        role: newUser.role || assignedRole
       }
     });
   } catch (error) {
@@ -452,10 +454,13 @@ app.post("/api/login", async (req, res) => {
       });
     }
 
+    const userRole = user.role || (cleanEmail === "admin@studyportal.edu" ? "admin" : "user");
+
     req.session.user = {
       id: user.id,
       name: user.name,
-      email: user.email
+      email: user.email,
+      role: userRole
     };
 
     res.json({
@@ -464,7 +469,8 @@ app.post("/api/login", async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        role: userRole
       }
     });
   } catch (error) {
@@ -591,6 +597,77 @@ app.get("/api/stats", async (req, res) => {
       subjects: 5,
       reads: "2.4k+"
     });
+  }
+});
+
+// ================= ADMIN MANAGEMENT APIS =================
+
+// Middleware to protect admin routes
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.user && req.session.user.role === "admin") {
+    return next();
+  }
+  return res.status(403).json({
+    success: false,
+    message: "Access restricted. Administrator credentials required."
+  });
+}
+
+// Get all registered users (Admin only)
+app.get("/api/admin/users", requireAdmin, async (req, res) => {
+  try {
+    const users = await sql`
+      SELECT id, name, email, COALESCE(role, 'user') AS role, created_at
+      FROM users
+      ORDER BY id ASC
+    `;
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error("Admin users fetch error:", err);
+    res.status(500).json({ success: false, message: "Could not fetch users list." });
+  }
+});
+
+// Update user role (Admin only)
+app.post("/api/admin/users/:id/role", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  if (role !== "admin" && role !== "user") {
+    return res.status(400).json({ success: false, message: "Invalid role specified." });
+  }
+
+  try {
+    await sql`UPDATE users SET role = ${role} WHERE id = ${id}`;
+    res.json({ success: true, message: `User role updated to ${role}.` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Could not update role." });
+  }
+});
+
+// Delete user account (Admin only)
+app.delete("/api/admin/users/:id", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const targetUser = await sql`SELECT email FROM users WHERE id = ${id}`;
+    if (targetUser.length > 0 && targetUser[0].email === "admin@studyportal.edu") {
+      return res.status(400).json({ success: false, message: "Cannot delete the primary master administrator account." });
+    }
+    await sql`DELETE FROM users WHERE id = ${id}`;
+    res.json({ success: true, message: "User account deleted." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to delete user." });
+  }
+});
+
+// Delete resource (Admin only)
+app.delete("/api/admin/resources/:id", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await sql`DELETE FROM resources WHERE id = ${id}`;
+    res.json({ success: true, message: "Resource removed successfully." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to remove resource." });
   }
 });
 

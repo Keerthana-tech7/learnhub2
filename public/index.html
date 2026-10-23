@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="StudyPortal Pro - Premier Student Study Resource Portal with verified lecture notes, runnable code snippets, peer uploads, and AI study assistant.">
-  <title>StudyPortal Pro | Modern Student Resource Platform</title>
+  <meta name="description" content="StudyPortal Pro - Academic repository for coursework notes, runnable code programs, peer materials, and technical study assistance.">
+  <title>StudyPortal Pro | Academic Coursework & Resource Platform</title>
 
-  <!-- Google Fonts: Outfit (Headings), Plus Jakarta Sans (Body), JetBrains Mono (Code) -->
+  <!-- Typography: Outfit for headers, Plus Jakarta Sans for body, JetBrains Mono for code -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
 </head>
@@ -19,33 +19,38 @@
   <header>
     <nav class="navbar">
       <a class="logo" onclick="handleLogoClick()">
-        <div class="logo-icon-box">⚡</div>
-        <div class="logo-text">Study<span>Portal</span></div>
+        <div class="logo-symbol">SP</div>
+        <div class="logo-text">StudyPortal</div>
         <span class="logo-badge">PRO</span>
       </a>
 
       <!-- Main Navigation Links -->
       <div class="nav-links" id="main-nav">
-        <!-- Logged-in protected links -->
-        <a href="#home" class="nav-link nav-auth-protected" id="nav-home" onclick="showPage('home')">🏠 Home</a>
-        <a href="#resources" class="nav-link nav-auth-protected" id="nav-resources" onclick="showPage('resources')">📚 Resources</a>
-        <a href="#ai-search" class="nav-link nav-auth-protected" id="nav-ai" onclick="showPage('ai-search')">🤖 AI Assistant</a>
-        <a href="#upload" class="nav-link nav-auth-protected" id="nav-upload" onclick="showPage('upload')">📤 Share Notes</a>
-        <a href="#admin" class="nav-link nav-auth-protected" id="nav-admin" onclick="showPage('admin')">🛠️ Metrics</a>
+        <!-- Logged-in student links -->
+        <a href="#home" class="nav-link nav-auth-protected" id="nav-home" onclick="showPage('home')">Home</a>
+        <a href="#resources" class="nav-link nav-auth-protected" id="nav-resources" onclick="showPage('resources')">Resources</a>
+        <a href="#ai-search" class="nav-link nav-auth-protected" id="nav-ai" onclick="showPage('ai-search')">AI Assistant</a>
+        <a href="#upload" class="nav-link nav-auth-protected" id="nav-upload" onclick="showPage('upload')">Contribute</a>
+
+        <!-- Admin-Only Navigation Link (Completely hidden from normal users) -->
+        <a href="#admin" class="nav-link nav-admin-link nav-admin-only" id="nav-admin" onclick="showPage('admin')" style="display: none;">
+          Admin Console
+        </a>
 
         <!-- Guest links -->
-        <a href="#login" class="nav-link" id="nav-login" onclick="showPage('login')">🔐 Sign In</a>
-        <a href="#register" class="nav-link" id="nav-register" onclick="showPage('register')">📝 Join Free</a>
+        <a href="#login" class="nav-link" id="nav-login" onclick="showPage('login')">Sign In</a>
+        <a href="#register" class="nav-link" id="nav-register" onclick="showPage('register')">Register</a>
       </div>
 
-      <!-- User Greeting & Logout -->
+      <!-- User Profile & Sign Out -->
       <div class="nav-user-cluster" id="nav-user-cluster" style="display: none;">
         <div class="user-pill">
-          <div class="user-avatar-sm" id="user-avatar-initial">S</div>
-          <span class="user-name-text" id="user-name-display">Alex</span>
+          <div class="user-avatar-sm" id="user-avatar-initial">U</div>
+          <span class="user-name-text" id="user-name-display">Student</span>
+          <span class="user-role-tag" id="user-role-badge">USER</span>
         </div>
-        <button class="btn-logout" onclick="logoutUser()" title="Sign out of your session">
-          🚪 <span>Logout</span>
+        <button class="btn-logout" onclick="logoutUser()" title="Sign out of current session">
+          Sign Out
         </button>
       </div>
     </nav>
@@ -61,38 +66,36 @@
           
           <!-- Left Presentation Column -->
           <div class="auth-split-left">
-            <div class="auth-badge">
-              <span>✨</span> Academic Excellence 2026
-            </div>
+            <div class="section-kicker">Academic Platform 2026</div>
             <h1 class="auth-title">
-              Level up your GPA with <span class="gradient-text">StudyPortal Pro</span>
+              Centralized study resource repository for academic excellence.
             </h1>
             <p class="auth-subtitle">
-              Join thousands of engineering and computing students accessing exam-oriented notes, verified lab programs, runnable code, and instant AI explanations.
+              Verified syllabus lecture notes, structured programming problem sets, reference cheat sheets, and conceptual AI tutoring for university coursework.
             </p>
 
             <div class="auth-highlights">
               <div class="highlight-item">
-                <div class="highlight-icon">🎯</div>
+                <div class="highlight-number">01</div>
                 <div class="highlight-text">
-                  <h4>Curated Coursework Notes</h4>
-                  <p>Comprehensive syllabi for C, Data Structures, Web Development, Cloud & DevOps.</p>
+                  <h4>Curated Core Coursework</h4>
+                  <p>Comprehensive syllabi for C Programming, Data Structures, Web Development, and Cloud Computing.</p>
                 </div>
               </div>
 
               <div class="highlight-item">
-                <div class="highlight-icon">🤖</div>
+                <div class="highlight-number">02</div>
                 <div class="highlight-text">
-                  <h4>AI Study Assistant</h4>
-                  <p>Ask technical questions in plain English and receive instant syllabus-aligned breakdowns.</p>
+                  <h4>AI Concept Synthesizer</h4>
+                  <p>Query coursework topics in natural language to receive syllabus-aligned breakdowns and code implementations.</p>
                 </div>
               </div>
 
               <div class="highlight-item">
-                <div class="highlight-icon">⚡</div>
+                <div class="highlight-number">03</div>
                 <div class="highlight-text">
-                  <h4>Live Neon PostgreSQL Backend</h4>
-                  <p>Real-time cloud database syncing your notes, peer submissions, and account credentials.</p>
+                  <h4>Neon PostgreSQL Architecture</h4>
+                  <p>Reliable cloud database synchronizing course materials, community submissions, and student access.</p>
                 </div>
               </div>
             </div>
@@ -101,9 +104,8 @@
           <!-- Right Registration Card -->
           <div class="auth-card">
             <div class="auth-header">
-              <div class="auth-avatar-icon">🎓</div>
-              <h2>Create Student Account</h2>
-              <p>Get started with free access to all academic notes</p>
+              <h2>Create Account</h2>
+              <p>Enter your credentials to register a student profile</p>
             </div>
 
             <div id="register-message" class="auth-message"></div>
@@ -112,38 +114,35 @@
               <div class="form-group">
                 <label class="form-label" for="register-name">Full Name</label>
                 <div class="input-wrapper">
-                  <span class="input-icon">👤</span>
                   <input type="text" id="register-name" class="form-input" placeholder="e.g. Alex Rivera" required autocomplete="name">
                 </div>
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="register-email">College / Personal Email</label>
+                <label class="form-label" for="register-email">Institutional or Personal Email</label>
                 <div class="input-wrapper">
-                  <span class="input-icon">✉️</span>
                   <input type="email" id="register-email" class="form-input" placeholder="student@college.edu" required autocomplete="email">
                 </div>
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="register-password">Create Password</label>
+                <label class="form-label" for="register-password">Password</label>
                 <div class="input-wrapper">
-                  <span class="input-icon">🔒</span>
-                  <input type="password" id="register-password" class="form-input" placeholder="At least 6 characters" required autocomplete="new-password">
-                  <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('register-password', this)">👁️</button>
+                  <input type="password" id="register-password" class="form-input" placeholder="Minimum 6 characters" required autocomplete="new-password">
+                  <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('register-password', this)">Show</button>
                 </div>
                 <div class="password-strength-bar">
                   <div class="password-strength-fill" id="register-pwd-strength"></div>
                 </div>
               </div>
 
-              <button type="submit" id="register-submit-btn" class="btn-primary btn-block" style="margin-top: 10px;">
-                🚀 Register & Continue
+              <button type="submit" id="register-submit-btn" class="btn-primary btn-block" style="margin-top: 14px;">
+                Complete Registration
               </button>
             </form>
 
             <div class="auth-footer-switch">
-              Already registered? <a onclick="showPage('login')">Sign In to your account &rarr;</a>
+              Already registered? <a onclick="showPage('login')">Sign in here</a>
             </div>
           </div>
 
@@ -156,9 +155,8 @@
       <div class="auth-wrapper">
         <div class="auth-card auth-card-centered">
           <div class="auth-header">
-            <div class="auth-avatar-icon" style="background: var(--grad-accent);">🔐</div>
-            <h2>Student Sign In</h2>
-            <p>Enter your credentials to access your dashboard</p>
+            <h2>Account Sign In</h2>
+            <p>Access your study portal dashboard and course modules</p>
           </div>
 
           <div id="login-message" class="auth-message"></div>
@@ -167,27 +165,25 @@
             <div class="form-group">
               <label class="form-label" for="login-email">Registered Email</label>
               <div class="input-wrapper">
-                <span class="input-icon">✉️</span>
                 <input type="email" id="login-email" class="form-input" placeholder="student@college.edu" required autocomplete="email">
               </div>
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="login-password">Account Password</label>
+              <label class="form-label" for="login-password">Password</label>
               <div class="input-wrapper">
-                <span class="input-icon">🔒</span>
                 <input type="password" id="login-password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
-                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password', this)">👁️</button>
+                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password', this)">Show</button>
               </div>
             </div>
 
-            <button type="submit" id="login-submit-btn" class="btn-primary btn-block" style="margin-top: 10px;">
-              ⚡ Sign In to StudyPortal
+            <button type="submit" id="login-submit-btn" class="btn-primary btn-block" style="margin-top: 14px;">
+              Sign In to Dashboard
             </button>
           </form>
 
           <div class="auth-footer-switch">
-            First time visiting? <a onclick="showPage('register')">Create a new account &rarr;</a>
+            New user? <a onclick="showPage('register')">Register a new profile</a>
           </div>
         </div>
       </div>
@@ -199,23 +195,23 @@
       <!-- Welcome Hero -->
       <div class="dashboard-hero">
         <div class="dashboard-welcome-badge">
-          <span class="pulse-dot"></span>
-          <span>Verified Student Session Active</span>
+          <span class="status-dot-solid"></span>
+          <span>Active Session Verified</span>
         </div>
-        <h1>Welcome Back, <span class="gradient-text" id="hero-student-name">Student</span>!</h1>
+        <h1>Welcome, <span id="hero-student-name">Student</span></h1>
         <p>
-          Your centralized academic repository is up to date. Explore comprehensive syllabus notes, test code snippets, or ask the AI assistant for instant concept breakdowns.
+          Your coursework materials and reference resources are synchronized. Select a subject module below, search technical concepts, or consult the AI assistant.
         </p>
 
         <div class="dashboard-hero-actions">
           <button class="btn-primary" onclick="showPage('resources')">
-            📚 Browse Resource Library
+            Browse All Modules
           </button>
           <button class="btn-secondary" onclick="showPage('ai-search')">
-            🤖 Ask AI Study Assistant
+            Consult AI Assistant
           </button>
           <button class="btn-secondary" onclick="showPage('upload')">
-            📤 Contribute Notes
+            Share Notes
           </button>
         </div>
       </div>
@@ -223,85 +219,87 @@
       <!-- Live Statistics Ribbon -->
       <div class="stats-ribbon">
         <div class="stat-box">
-          <div class="stat-icon-wrapper" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">📖</div>
-          <div>
-            <div class="stat-number" id="dash-stat-resources">5</div>
-            <div class="stat-label">Verified Course Modules</div>
-          </div>
+          <div class="stat-header">Verified Modules</div>
+          <div class="stat-number" id="dash-stat-resources">6</div>
+          <div class="stat-label">Reviewed coursework notes</div>
         </div>
 
         <div class="stat-box">
-          <div class="stat-icon-wrapper" style="background: rgba(6, 182, 212, 0.15); color: #38bdf8;">🎯</div>
-          <div>
-            <div class="stat-number" id="dash-stat-subjects">5</div>
-            <div class="stat-label">Core Technical Subjects</div>
-          </div>
+          <div class="stat-header">Core Disciplines</div>
+          <div class="stat-number" id="dash-stat-subjects">5</div>
+          <div class="stat-label">Engineering curricula</div>
         </div>
 
         <div class="stat-box">
-          <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">👥</div>
-          <div>
-            <div class="stat-number" id="dash-stat-users">8+</div>
-            <div class="stat-label">Registered Classmates</div>
-          </div>
+          <div class="stat-header">Student Cohort</div>
+          <div class="stat-number" id="dash-stat-users">14</div>
+          <div class="stat-label">Registered members</div>
         </div>
 
         <div class="stat-box">
-          <div class="stat-icon-wrapper" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">⚡</div>
-          <div>
-            <div class="stat-number" id="dash-stat-reads">2.4k+</div>
-            <div class="stat-label">Student Study Reads</div>
-          </div>
+          <div class="stat-header">Total Study Reads</div>
+          <div class="stat-number" id="dash-stat-reads">2.4k+</div>
+          <div class="stat-label">Document consultations</div>
         </div>
       </div>
 
-      <!-- Quick Launchpad -->
+      <!-- Action Launchpad -->
       <div class="section-heading-row">
-        <h2>⚡ Quick Study Launchpad</h2>
+        <h2>Quick Launchpad</h2>
       </div>
 
       <div class="action-tiles-grid">
         <div class="action-tile" onclick="showPage('resources')">
           <div>
-            <div class="tile-icon">📚</div>
+            <div class="tile-tag">Syllabus</div>
             <h3>Resource Library</h3>
-            <p>Access in-depth syllabus notes, exam checklists, and runnable code for all subjects.</p>
+            <p>Access verified lecture notes, exam checklists, and runnable code for all core subjects.</p>
           </div>
-          <div class="tile-arrow">Open Library &rarr;</div>
+          <div class="tile-arrow">Open Repository &rarr;</div>
         </div>
 
         <div class="action-tile" onclick="showPage('ai-search')">
           <div>
-            <div class="tile-icon">🤖</div>
+            <div class="tile-tag">Synthesis</div>
             <h3>AI Study Assistant</h3>
-            <p>Instant answers to tricky algorithmic, systems, and programming questions.</p>
+            <p>Retrieve instant answers and conceptual explanations aligned with course topics.</p>
           </div>
           <div class="tile-arrow">Launch Assistant &rarr;</div>
         </div>
 
         <div class="action-tile" onclick="showPage('upload')">
           <div>
-            <div class="tile-icon">📤</div>
-            <h3>Upload & Share</h3>
-            <p>Share revision sheets, lecture slides, or lab implementations with your peers.</p>
+            <div class="tile-tag">Collaboration</div>
+            <h3>Contribute Material</h3>
+            <p>Submit revision sheets, laboratory programs, or notes to the repository.</p>
           </div>
-          <div class="tile-arrow">Share Material &rarr;</div>
+          <div class="tile-arrow">Submit Document &rarr;</div>
         </div>
 
-        <div class="action-tile" onclick="showPage('admin')">
+        <!-- Launchpad Tile: Admin Console tile is shown ONLY for Admins, replaced by Quick Search for regular students -->
+        <div class="action-tile nav-admin-only" id="dash-admin-tile" onclick="showPage('admin')" style="display: none;">
           <div>
-            <div class="tile-icon">🛠️</div>
-            <h3>System Status</h3>
-            <p>Monitor live Neon database connections, user accounts, and platform health.</p>
+            <div class="tile-tag" style="color: var(--accent-blue);">Administration</div>
+            <h3>Management Console</h3>
+            <p>Admin exclusive: Review registered accounts, manage published materials, and monitor Neon database diagnostics.</p>
           </div>
-          <div class="tile-arrow">View Metrics &rarr;</div>
+          <div class="tile-arrow" style="color: var(--accent-blue);">Open Console &rarr;</div>
+        </div>
+
+        <div class="action-tile" id="dash-student-tile" onclick="showPage('resources')">
+          <div>
+            <div class="tile-tag">Reference</div>
+            <h3>Course Cheat Sheets</h3>
+            <p>Quick lookup reference cards for algorithmic complexity, C pointers, and web syntax.</p>
+          </div>
+          <div class="tile-arrow">View Reference &rarr;</div>
         </div>
       </div>
 
       <!-- Featured / Trending Study Notes -->
       <div class="section-heading-row">
-        <h2>🔥 Trending Study Modules</h2>
-        <button class="btn-secondary btn-sm" onclick="showPage('resources')">View All &rarr;</button>
+        <h2>Core Modules</h2>
+        <button class="btn-secondary btn-sm" onclick="showPage('resources')">View All Modules &rarr;</button>
       </div>
 
       <div class="resources-grid" id="home-featured-resources">
@@ -313,26 +311,26 @@
     <!-- ================= PAGE 4: RESOURCES LIBRARY (Protected) ================= -->
     <section id="resources" class="page">
       <div class="page-header-box">
-        <span class="section-pill">📚 Academic Repository</span>
-        <h1>Coursework & Study Resource Library</h1>
-        <p>Verified lecture summaries, exam cheat sheets, and practical program examples across core engineering subjects.</p>
+        <div class="section-kicker">Coursework Repository</div>
+        <h1>Study Modules & Syllabus Library</h1>
+        <p>Verified lecture summaries, exam reference sheets, and implementation examples across technical curricula.</p>
       </div>
 
       <!-- Filter & Search Controls -->
       <div class="filter-bar-container">
         <div class="search-input-wrapper">
-          <span class="search-icon-inside">🔍</span>
-          <input type="text" id="resource-search-input" placeholder="Search by topic, keyword, or concept (e.g. pointers, big-o, flexbox, docker)...">
+          <input type="text" id="resource-search-input" placeholder="Search by topic, concept, or keyword (e.g. pointers, big-o, flexbox, docker)...">
         </div>
 
         <div class="filter-chips-row">
           <span class="filter-chip-label">Subject:</span>
-          <button class="filter-chip active" data-subject="all">All Subjects</button>
+          <button class="filter-chip active" data-subject="all">All Disciplines</button>
           <button class="filter-chip" data-subject="C Programming">C Programming</button>
           <button class="filter-chip" data-subject="Data Structures">Data Structures</button>
           <button class="filter-chip" data-subject="Web Development">Web Development</button>
           <button class="filter-chip" data-subject="Python Programming">Python</button>
           <button class="filter-chip" data-subject="Cloud & DevOps">Cloud & DevOps</button>
+          <button class="filter-chip" data-subject="Operating Systems">Operating Systems</button>
         </div>
       </div>
 
@@ -345,38 +343,37 @@
     <!-- ================= PAGE 5: AI STUDY ASSISTANT (Protected) ================= -->
     <section id="ai-search" class="page">
       <div class="page-header-box">
-        <span class="section-pill">🤖 Intelligent Assistant</span>
+        <div class="section-kicker">Intelligent Assistance</div>
         <h1>AI Syllabus Search & Concept Explainer</h1>
-        <p>Ask conceptual questions in natural language and get instantaneous, syllabus-aligned explanations with runnable code examples.</p>
+        <p>Query conceptual questions in plain language to generate syllabus-aligned breakdowns and runnable code examples.</p>
       </div>
 
       <div class="ai-assistant-container">
         <div class="ai-input-card">
-          <div class="ai-chips-label">Popular student inquiries:</div>
+          <div class="ai-chips-label">Standard Topics:</div>
           <div class="ai-quick-prompts">
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('Explain Pointers and Dynamic Memory in C')">📌 Pointers in C</button>
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('What is Big-O complexity of Binary Search?')">⏱️ Big-O Binary Search</button>
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('CSS Flexbox vs CSS Grid difference')">🎨 Flexbox vs Grid</button>
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('Python list comprehension examples')">🐍 Python Comprehensions</button>
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('Difference between AWS EC2, S3, and RDS')">☁️ AWS Core Services</button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('Explain Pointers and Dynamic Memory in C')">Pointers in C</button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('What is Big-O complexity of Binary Search?')">Big-O Binary Search</button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('CSS Flexbox vs CSS Grid difference')">Flexbox vs Grid</button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('Python list comprehension examples')">Python Comprehensions</button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('Difference between AWS EC2, S3, and RDS')">AWS Cloud Infrastructure</button>
           </div>
 
           <form id="ai-search-form" onsubmit="handleAiSearchSubmit(event)">
-            <div class="search-input-wrapper" style="margin-bottom: 14px;">
-              <span class="search-icon-inside">🤖</span>
-              <input type="text" id="ai-query-input" placeholder="Type any question: e.g., 'How do stacks work in C?' or 'Explain AWS S3'..." required>
+            <div class="search-input-wrapper" style="margin-bottom: 12px;">
+              <input type="text" id="ai-query-input" placeholder="Enter coursework inquiry: e.g. 'How does paging work in Operating Systems?'" required>
             </div>
             <button type="submit" class="btn-primary btn-block">
-              ⚡ Ask AI Assistant
+              Analyze Concept
             </button>
           </form>
         </div>
 
         <div class="ai-results-card" id="ai-results-container">
           <div class="ai-empty-state">
-            <div class="ai-empty-icon">💡</div>
-            <h3>Ready for your questions</h3>
-            <p>Select any sample prompt above or enter any coursework topic to generate a comprehensive study answer.</p>
+            <div class="ai-empty-icon">[ ? ]</div>
+            <h3 style="color: var(--text-main); font-size: 16px; margin-bottom: 4px;">Awaiting Query</h3>
+            <p>Select any suggested topic above or enter a question to generate a concept analysis.</p>
           </div>
         </div>
       </div>
@@ -385,9 +382,9 @@
     <!-- ================= PAGE 6: UPLOAD NOTES (Protected) ================= -->
     <section id="upload" class="page">
       <div class="page-header-box">
-        <span class="section-pill">📤 Peer Contribution</span>
-        <h1>Share Study Notes & Lab Materials</h1>
-        <p>Empower your classmates by contributing revision notes, handwritten sheets, or lab code to the centralized repository.</p>
+        <div class="section-kicker">Peer Collaboration</div>
+        <h1>Contribute Study Materials</h1>
+        <p>Share coursework notes, revision summaries, and lab implementations with the student cohort.</p>
       </div>
 
       <div class="upload-container">
@@ -398,15 +395,13 @@
             <div class="form-group">
               <label class="form-label" for="upload-title">Document Title</label>
               <div class="input-wrapper">
-                <span class="input-icon">📝</span>
-                <input type="text" id="upload-title" class="form-input" placeholder="e.g. Unit 3 Operating Systems Quick Revision" required>
+                <input type="text" id="upload-title" class="form-input" placeholder="e.g. Unit 3 Operating Systems Memory Management" required>
               </div>
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="upload-subject">Subject Domain</label>
+              <label class="form-label" for="upload-subject">Subject Discipline</label>
               <div class="input-wrapper">
-                <span class="input-icon">🏷️</span>
                 <select id="upload-subject" class="form-input" required>
                   <option value="C Programming">C Programming</option>
                   <option value="Data Structures">Data Structures & Algorithms</option>
@@ -421,86 +416,148 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="upload-description">Description & Key Highlights</label>
-              <textarea id="upload-description" class="form-input" rows="4" placeholder="Summarize key chapters, formulas, or test problems covered in this upload..." required style="resize: vertical;"></textarea>
+              <label class="form-label" for="upload-description">Overview & Key Takeaways</label>
+              <textarea id="upload-description" class="form-input" rows="4" placeholder="Summarize main topics, formulas, or practice problems covered..." required style="resize: vertical;"></textarea>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Attach File (PDF, DOCX, TXT, Code, ZIP)</label>
+              <label class="form-label">Attach File (PDF, DOCX, TXT, PY, C, JS, ZIP)</label>
               <div class="dropzone-box" id="upload-dropzone" onclick="document.getElementById('upload-file-input').click()">
-                <div class="dropzone-icon">📁</div>
                 <div class="dropzone-text">
                   <h4 id="dropzone-file-name">Click or Drag & Drop File Here</h4>
-                  <p>Supports PDF, DOCX, TXT, PY, C, JS up to 25MB</p>
+                  <p>Maximum file size: 25MB</p>
                 </div>
                 <input type="file" id="upload-file-input" style="display: none;" onchange="handleFileSelected(this)">
               </div>
             </div>
 
             <button type="submit" id="upload-submit-btn" class="btn-primary btn-block">
-              🚀 Publish to Resource Portal
+              Publish Document to Repository
             </button>
           </form>
         </div>
       </div>
     </section>
 
-    <!-- ================= PAGE 7: ADMIN & SYSTEM METRICS (Protected) ================= -->
+    <!-- ================= PAGE 7: ADMIN CONSOLE (STRICTLY RESTRICTED TO ADMINS) ================= -->
     <section id="admin" class="page">
       <div class="page-header-box">
-        <span class="section-pill">🛠️ Administration</span>
-        <h1>Platform Metrics & Neon Database Diagnostics</h1>
-        <p>Live health statistics, cloud PostgreSQL connection verification, and user management.</p>
+        <div class="admin-header-badge">Administrative Access Only</div>
+        <h1>Platform Management & Diagnostics</h1>
+        <p>Manage user accounts, regulate uploaded coursework materials, and monitor Neon cloud database connectivity.</p>
       </div>
 
-      <div class="admin-grid">
-        <div class="admin-card">
-          <h3>⚡ Database & Health Status</h3>
-          
-          <div class="system-status-indicator">
-            <span class="pulse-dot"></span>
-            <div>
-              <strong style="color: #6ee7b7; font-size: 14px;">Neon PostgreSQL Connected</strong>
-              <div style="font-size: 12px; color: var(--text-dim);">ep-lingering-night-b4ed5h7r-pooler.c-6.us-east-2.aws.neon.tech</div>
-            </div>
-          </div>
+      <!-- Admin Management Tabs -->
+      <div class="admin-tabs-row">
+        <button class="admin-tab-btn active" onclick="switchAdminTab('users', this)">User Accounts Directory</button>
+        <button class="admin-tab-btn" onclick="switchAdminTab('resources', this)">Published Resources</button>
+        <button class="admin-tab-btn" onclick="switchAdminTab('system', this)">Database & Health</button>
+      </div>
 
-          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14px; color: var(--text-muted);">
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
-              <span>Database Engine:</span>
-              <strong style="color: var(--text-main);">PostgreSQL (Neon Serverless)</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
-              <span>SSL Encryption:</span>
-              <strong style="color: #34d399;">Active (TLS 1.3)</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
-              <span>Password Security:</span>
-              <strong style="color: var(--text-main);">bcrypt (10 salt rounds)</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding-bottom: 8px;">
-              <span>API Gateway:</span>
-              <strong style="color: var(--text-main);">Express 5.x / REST</strong>
-            </div>
+      <!-- TAB 1: USER ACCOUNTS DIRECTORY -->
+      <div class="admin-tab-panel active" id="admin-panel-users">
+        <div class="admin-table-container">
+          <div class="admin-table-header">
+            <h3>Registered User Directory</h3>
+            <span style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);" id="admin-user-total-badge">0 Users</span>
           </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">ID</th>
+                <th>Full Name</th>
+                <th>Email Address</th>
+                <th>Role</th>
+                <th>Registration Date</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-table-body">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading accounts directory...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+      </div>
 
-        <div class="admin-card">
-          <h3>👥 Community Overview</h3>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-            <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; text-align: center;">
-              <div style="font-size: 28px; font-weight: 800; color: #818cf8;" id="admin-user-count">8</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Registered Accounts</div>
+      <!-- TAB 2: PUBLISHED RESOURCES DIRECTORY -->
+      <div class="admin-tab-panel" id="admin-panel-resources">
+        <div class="admin-table-container">
+          <div class="admin-table-header">
+            <h3>Published Coursework Documents</h3>
+            <span style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);" id="admin-res-total-badge">0 Modules</span>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Module Title</th>
+                <th>Subject</th>
+                <th>Level</th>
+                <th>Contributor</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-resources-table-body">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading resources directory...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: SYSTEM DIAGNOSTICS & NEON DB HEALTH -->
+      <div class="admin-tab-panel" id="admin-panel-system">
+        <div class="admin-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div class="admin-card" style="background: #ffffff; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: 24px;">
+            <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Database Infrastructure</h3>
+            
+            <div class="system-status-indicator">
+              <span class="status-dot-solid"></span>
+              <div>
+                <strong style="color: var(--accent-emerald); font-size: 13.5px;">Neon PostgreSQL Connected</strong>
+                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">ep-lingering-night-b4ed5h7r-pooler.c-6.us-east-2.aws.neon.tech</div>
+              </div>
             </div>
-            <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; text-align: center;">
-              <div style="font-size: 28px; font-weight: 800; color: #34d399;" id="admin-res-count">5</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Live Study Modules</div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted);">
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-hairline); padding-bottom: 8px;">
+                <span>Database Engine</span>
+                <strong style="color: var(--text-main);">PostgreSQL (Neon Serverless)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-hairline); padding-bottom: 8px;">
+                <span>SSL Encryption</span>
+                <strong style="color: var(--accent-emerald);">Active (TLS 1.3)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-hairline); padding-bottom: 8px;">
+                <span>Password Hashing</span>
+                <strong style="color: var(--text-main);">bcrypt (10 rounds)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span>API Runtime</span>
+                <strong style="color: var(--text-main);">Express 5.x / Node.js</strong>
+              </div>
             </div>
           </div>
 
-          <button class="btn-secondary btn-block btn-sm" onclick="fetchLiveStats(true)">
-            🔄 Refresh Live Neon Metrics
-          </button>
+          <div class="admin-card" style="background: #ffffff; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: 24px;">
+            <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Telemetry Overview</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px;">
+              <div style="background: var(--bg-subtle); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 16px; text-align: center;">
+                <div style="font-family: var(--font-heading); font-size: 26px; font-weight: 800; color: var(--text-main);" id="admin-user-count">14</div>
+                <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-dim);">Total Accounts</div>
+              </div>
+              <div style="background: var(--bg-subtle); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 16px; text-align: center;">
+                <div style="font-family: var(--font-heading); font-size: 26px; font-weight: 800; color: var(--text-main);" id="admin-res-count">6</div>
+                <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-dim);">Active Modules</div>
+              </div>
+            </div>
+
+            <button class="btn-secondary btn-block btn-sm" onclick="fetchLiveStats(true)">
+              Refresh Live Telemetry
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -514,21 +571,21 @@
         <div class="modal-header-info">
           <div class="modal-tag-row">
             <span class="subject-badge" id="modal-subject">Subject</span>
-            <span class="reading-pill" id="modal-reading-time">⏱️ 5 min read</span>
-            <span class="reading-pill" id="modal-level">🎯 Level</span>
+            <span class="reading-pill" id="modal-reading-time">5 min read</span>
+            <span class="reading-pill" id="modal-level">Core Syllabus</span>
           </div>
-          <h2 id="modal-title">Study Module Title</h2>
+          <h2 id="modal-title">Coursework Module Title</h2>
         </div>
 
         <div class="modal-header-actions">
           <button class="modal-action-btn" onclick="copyModalNotes()" title="Copy notes to clipboard">
-            📋 <span>Copy</span>
+            Copy Text
           </button>
-          <button class="modal-action-btn" onclick="downloadModalNotes()" title="Download notes as .txt file">
-            ⬇️ <span>Download</span>
+          <button class="modal-action-btn" onclick="downloadModalNotes()" title="Download notes as plain text file">
+            Download
           </button>
-          <button class="modal-action-btn" onclick="printModalNotes()" title="Print or save as PDF">
-            🖨️ <span>Print</span>
+          <button class="modal-action-btn" onclick="printModalNotes()" title="Print notes or save as PDF">
+            Print
           </button>
           <button class="modal-close-btn" onclick="closeNotesModal()" title="Close viewer (Esc)">&times;</button>
         </div>
@@ -536,14 +593,14 @@
 
       <div class="modal-body">
         <div class="modal-callout">
-          <strong>Summary:</strong>
-          <p id="modal-summary" style="margin-top: 4px; color: #e2e8f0; font-size: 14px;"></p>
+          <strong>Summary Overview:</strong>
+          <p id="modal-summary" style="margin-top: 4px; color: var(--text-body); font-size: 13.5px;"></p>
         </div>
         <div class="modal-notes-content" id="modal-content"></div>
       </div>
 
       <div class="modal-footer">
-        <span class="modal-footer-tip">💡 Tip: Press <strong>Esc</strong> to close the modal or click <strong>Print</strong> to generate a PDF.</span>
+        <span class="modal-footer-tip">Press <strong>Esc</strong> to exit the viewer or select <strong>Print</strong> for PDF export.</span>
         <button class="btn-secondary btn-sm" onclick="closeNotesModal()">Close Viewer</button>
       </div>
     </div>

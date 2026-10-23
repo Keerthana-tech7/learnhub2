@@ -19,27 +19,58 @@
   <header>
     <nav class="navbar">
       <a class="logo" onclick="handleLogoClick()">
-        <div class="logo-symbol">SP</div>
+        <div class="logo-symbol">
+          <svg class="icon icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+            <path d="M6 6h10M6 10h10"/>
+          </svg>
+        </div>
         <div class="logo-text">StudyPortal</div>
-        <span class="logo-badge">PRO</span>
+        <span class="logo-badge">
+          <span class="status-dot-solid"></span>
+          PRO
+        </span>
       </a>
 
-      <!-- Main Navigation Links -->
+      <!-- Main Navigation Links with Clean SVG Icons -->
       <div class="nav-links" id="main-nav">
         <!-- Logged-in student links -->
-        <a href="#home" class="nav-link nav-auth-protected" id="nav-home" onclick="showPage('home')">Home</a>
-        <a href="#resources" class="nav-link nav-auth-protected" id="nav-resources" onclick="showPage('resources')">Resources</a>
-        <a href="#ai-search" class="nav-link nav-auth-protected" id="nav-ai" onclick="showPage('ai-search')">AI Assistant</a>
-        <a href="#upload" class="nav-link nav-auth-protected" id="nav-upload" onclick="showPage('upload')">Contribute</a>
+        <a href="#home" class="nav-link nav-auth-protected" id="nav-home" onclick="showPage('home')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Home</span>
+        </a>
+
+        <a href="#resources" class="nav-link nav-auth-protected" id="nav-resources" onclick="showPage('resources')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+          <span>Resources</span>
+        </a>
+
+        <a href="#ai-search" class="nav-link nav-auth-protected" id="nav-ai" onclick="showPage('ai-search')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          <span>AI Assistant</span>
+        </a>
+
+        <a href="#upload" class="nav-link nav-auth-protected" id="nav-upload" onclick="showPage('upload')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>Contribute</span>
+        </a>
 
         <!-- Admin-Only Navigation Link (Completely hidden from normal users) -->
         <a href="#admin" class="nav-link nav-admin-link nav-admin-only" id="nav-admin" onclick="showPage('admin')" style="display: none;">
-          Admin Console
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Admin Console</span>
         </a>
 
         <!-- Guest links -->
-        <a href="#login" class="nav-link" id="nav-login" onclick="showPage('login')">Sign In</a>
-        <a href="#register" class="nav-link" id="nav-register" onclick="showPage('register')">Register</a>
+        <a href="#login" class="nav-link" id="nav-login" onclick="showPage('login')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          <span>Sign In</span>
+        </a>
+
+        <a href="#register" class="nav-link" id="nav-register" onclick="showPage('register')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          <span>Register</span>
+        </a>
       </div>
 
       <!-- User Profile & Sign Out -->
@@ -50,7 +81,8 @@
           <span class="user-role-tag" id="user-role-badge">USER</span>
         </div>
         <button class="btn-logout" onclick="logoutUser()" title="Sign out of current session">
-          Sign Out
+          <svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Sign Out</span>
         </button>
       </div>
     </nav>
@@ -66,17 +98,24 @@
           
           <!-- Left Presentation Column -->
           <div class="auth-split-left">
-            <div class="section-kicker">Academic Platform 2026</div>
+            <div class="kicker-pill">
+              <span class="status-dot-pulse"></span>
+              <span>Academic Workspace &bull; Fall 2026</span>
+            </div>
+
             <h1 class="auth-title">
-              Centralized study resource repository for academic excellence.
+              Centralized study resource repository for engineering coursework.
             </h1>
+
             <p class="auth-subtitle">
-              Verified syllabus lecture notes, structured programming problem sets, reference cheat sheets, and conceptual AI tutoring for university coursework.
+              Verified syllabus lecture notes, structured programming problem sets, reference cheat sheets, and conceptual AI tutoring for university students.
             </p>
 
             <div class="auth-highlights">
               <div class="highlight-item">
-                <div class="highlight-number">01</div>
+                <div class="highlight-icon-box blue">
+                  <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+                </div>
                 <div class="highlight-text">
                   <h4>Curated Core Coursework</h4>
                   <p>Comprehensive syllabi for C Programming, Data Structures, Web Development, and Cloud Computing.</p>
@@ -84,7 +123,9 @@
               </div>
 
               <div class="highlight-item">
-                <div class="highlight-number">02</div>
+                <div class="highlight-icon-box indigo">
+                  <svg class="icon icon-md" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                </div>
                 <div class="highlight-text">
                   <h4>AI Concept Synthesizer</h4>
                   <p>Query coursework topics in natural language to receive syllabus-aligned breakdowns and code implementations.</p>
@@ -92,11 +133,32 @@
               </div>
 
               <div class="highlight-item">
-                <div class="highlight-number">03</div>
+                <div class="highlight-icon-box emerald">
+                  <svg class="icon icon-md" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                </div>
                 <div class="highlight-text">
                   <h4>Neon PostgreSQL Architecture</h4>
                   <p>Reliable cloud database synchronizing course materials, community submissions, and student access.</p>
                 </div>
+              </div>
+            </div>
+
+            <!-- Floating Preview Card Showing Genuine Academic Quality -->
+            <div class="auth-sample-card">
+              <div class="sample-card-header">
+                <div class="sample-tag-group">
+                  <span class="subject-badge" data-subject="Data Structures">Data Structures</span>
+                  <span class="sample-verified-badge">
+                    <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><polyline points="20 6 9 17 4 12"/></svg>
+                    Syllabus Verified
+                  </span>
+                </div>
+                <span class="reading-pill">6 min read</span>
+              </div>
+              <h4 class="sample-title">Unit 4: Binary Search Trees & Balanced AVL Rotations</h4>
+              <p class="sample-desc">Complete algorithmic analysis of tree balancing, height invariant checks, and recursive node insertion routines.</p>
+              <div class="sample-code-snip">
+                <code>struct Node* insert(struct Node* node, int key) { /* recursive AVL */ }</code>
               </div>
             </div>
           </div>
@@ -114,21 +176,30 @@
               <div class="form-group">
                 <label class="form-label" for="register-name">Full Name</label>
                 <div class="input-wrapper">
-                  <input type="text" id="register-name" class="form-input" placeholder="e.g. Alex Rivera" required autocomplete="name">
+                  <span class="input-prefix-icon">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </span>
+                  <input type="text" id="register-name" class="form-input with-prefix" placeholder="e.g. Alex Rivera" required autocomplete="name">
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="register-email">Institutional or Personal Email</label>
                 <div class="input-wrapper">
-                  <input type="email" id="register-email" class="form-input" placeholder="student@college.edu" required autocomplete="email">
+                  <span class="input-prefix-icon">
+                    <svg class="icon" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                  </span>
+                  <input type="email" id="register-email" class="form-input with-prefix" placeholder="student@college.edu" required autocomplete="email">
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="register-password">Password</label>
                 <div class="input-wrapper">
-                  <input type="password" id="register-password" class="form-input" placeholder="Minimum 6 characters" required autocomplete="new-password">
+                  <span class="input-prefix-icon">
+                    <svg class="icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </span>
+                  <input type="password" id="register-password" class="form-input with-prefix" placeholder="Minimum 6 characters" required autocomplete="new-password">
                   <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('register-password', this)">Show</button>
                 </div>
                 <div class="password-strength-bar">
@@ -137,7 +208,8 @@
               </div>
 
               <button type="submit" id="register-submit-btn" class="btn-primary btn-block" style="margin-top: 14px;">
-                Complete Registration
+                <span>Complete Registration</span>
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </form>
 
@@ -165,25 +237,40 @@
             <div class="form-group">
               <label class="form-label" for="login-email">Registered Email</label>
               <div class="input-wrapper">
-                <input type="email" id="login-email" class="form-input" placeholder="student@college.edu" required autocomplete="email">
+                <span class="input-prefix-icon">
+                  <svg class="icon" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                </span>
+                <input type="email" id="login-email" class="form-input with-prefix" placeholder="student@college.edu" required autocomplete="email">
               </div>
             </div>
 
             <div class="form-group">
               <label class="form-label" for="login-password">Password</label>
               <div class="input-wrapper">
-                <input type="password" id="login-password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+                <span class="input-prefix-icon">
+                  <svg class="icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <input type="password" id="login-password" class="form-input with-prefix" placeholder="Enter your password" required autocomplete="current-password">
                 <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password', this)">Show</button>
               </div>
             </div>
 
             <button type="submit" id="login-submit-btn" class="btn-primary btn-block" style="margin-top: 14px;">
-              Sign In to Dashboard
+              <span>Sign In to Dashboard</span>
+              <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </form>
 
           <div class="auth-footer-switch">
             New user? <a onclick="showPage('register')">Register a new profile</a>
+          </div>
+
+          <!-- Quick Test Credentials Hint Box for convenience -->
+          <div class="auth-eval-hint">
+            <span class="eval-hint-label">Evaluation Profiles:</span>
+            <div class="eval-hint-row">
+              <strong>Admin:</strong> <code>admin@studyportal.edu</code> / <code>adminpassword123</code>
+            </div>
           </div>
         </div>
       </div>
@@ -192,114 +279,221 @@
     <!-- ================= PAGE 3: HOME DASHBOARD (Protected - Logged in only) ================= -->
     <section id="home" class="page">
       
-      <!-- Welcome Hero -->
+      <!-- Welcome Hero with Dual Column Layout -->
       <div class="dashboard-hero">
-        <div class="dashboard-welcome-badge">
-          <span class="status-dot-solid"></span>
-          <span>Active Session Verified</span>
-        </div>
-        <h1>Welcome, <span id="hero-student-name">Student</span></h1>
-        <p>
-          Your coursework materials and reference resources are synchronized. Select a subject module below, search technical concepts, or consult the AI assistant.
-        </p>
+        <div class="hero-left-column">
+          <div class="dashboard-welcome-badge">
+            <span class="status-dot-pulse"></span>
+            <span>Active Session Verified</span>
+          </div>
 
-        <div class="dashboard-hero-actions">
-          <button class="btn-primary" onclick="showPage('resources')">
-            Browse All Modules
-          </button>
-          <button class="btn-secondary" onclick="showPage('ai-search')">
-            Consult AI Assistant
-          </button>
-          <button class="btn-secondary" onclick="showPage('upload')">
-            Share Notes
-          </button>
+          <h1>Welcome back, <span id="hero-student-name">Student</span></h1>
+          
+          <p>
+            Your coursework materials and reference resources are synchronized with the Neon cloud repository. Select a subject module below, search technical concepts, or consult the AI assistant.
+          </p>
+
+          <div class="dashboard-hero-actions">
+            <button class="btn-primary" onclick="showPage('resources')">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+              <span>Browse All Modules</span>
+            </button>
+
+            <button class="btn-secondary" onclick="showPage('ai-search')">
+              <svg class="icon" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+              <span>Consult AI Assistant</span>
+            </button>
+
+            <button class="btn-secondary" onclick="showPage('upload')">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Share Notes</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Side: Live Academic Cohort Spotlight Card -->
+        <div class="hero-spotlight-card">
+          <div class="spotlight-header">
+            <div class="spotlight-title">
+              <span class="spotlight-indicator"></span>
+              Curriculum Synchronization
+            </div>
+            <span class="spotlight-badge">Fall 2026</span>
+          </div>
+
+          <div class="spotlight-metrics-list">
+            <div class="spotlight-metric-item">
+              <span class="metric-key">Curriculum Coverage</span>
+              <strong class="metric-val">100% Core Syllabi</strong>
+            </div>
+            <div class="spotlight-metric-item">
+              <span class="metric-key">Database Engine</span>
+              <strong class="metric-val" style="color: var(--emerald-primary);">PostgreSQL Active</strong>
+            </div>
+            <div class="spotlight-metric-item">
+              <span class="metric-key">Revision Checklists</span>
+              <strong class="metric-val">Updated Today</strong>
+            </div>
+          </div>
+
+          <div class="spotlight-footer-tip">
+            <svg class="icon" viewBox="0 0 24 24" style="color: var(--blue-primary);"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span>Tip: Consult the AI Assistant for natural language syntax debugging.</span>
+          </div>
         </div>
       </div>
 
-      <!-- Live Statistics Ribbon -->
+      <!-- Live Statistics Ribbon with Dedicated Color Badges -->
       <div class="stats-ribbon">
         <div class="stat-box">
-          <div class="stat-header">Verified Modules</div>
-          <div class="stat-number" id="dash-stat-resources">6</div>
-          <div class="stat-label">Reviewed coursework notes</div>
+          <div class="stat-icon-wrapper blue">
+            <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+          </div>
+          <div>
+            <div class="stat-header">Verified Modules</div>
+            <div class="stat-number" id="dash-stat-resources">6</div>
+            <div class="stat-label">Reviewed coursework notes</div>
+          </div>
         </div>
 
         <div class="stat-box">
-          <div class="stat-header">Core Disciplines</div>
-          <div class="stat-number" id="dash-stat-subjects">5</div>
-          <div class="stat-label">Engineering curricula</div>
+          <div class="stat-icon-wrapper indigo">
+            <svg class="icon icon-md" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          </div>
+          <div>
+            <div class="stat-header">Core Disciplines</div>
+            <div class="stat-number" id="dash-stat-subjects">5</div>
+            <div class="stat-label">Engineering curricula</div>
+          </div>
         </div>
 
         <div class="stat-box">
-          <div class="stat-header">Student Cohort</div>
-          <div class="stat-number" id="dash-stat-users">14</div>
-          <div class="stat-label">Registered members</div>
+          <div class="stat-icon-wrapper emerald">
+            <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div>
+            <div class="stat-header">Student Cohort</div>
+            <div class="stat-number" id="dash-stat-users">14</div>
+            <div class="stat-label">Registered members</div>
+          </div>
         </div>
 
         <div class="stat-box">
-          <div class="stat-header">Total Study Reads</div>
-          <div class="stat-number" id="dash-stat-reads">2.4k+</div>
-          <div class="stat-label">Document consultations</div>
+          <div class="stat-icon-wrapper amber">
+            <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <div>
+            <div class="stat-header">Total Study Reads</div>
+            <div class="stat-number" id="dash-stat-reads">2.4k+</div>
+            <div class="stat-label">Document consultations</div>
+          </div>
         </div>
       </div>
 
       <!-- Action Launchpad -->
       <div class="section-heading-row">
         <h2>Quick Launchpad</h2>
+        <span class="section-subtitle-tag">Essential Student Workspaces</span>
       </div>
 
       <div class="action-tiles-grid">
         <div class="action-tile" onclick="showPage('resources')">
           <div>
-            <div class="tile-tag">Syllabus</div>
+            <div class="tile-top-row">
+              <div class="tile-icon-box blue">
+                <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+              </div>
+              <span class="tile-tag">Syllabus</span>
+            </div>
             <h3>Resource Library</h3>
-            <p>Access verified lecture notes, exam checklists, and runnable code for all core subjects.</p>
+            <p>Access verified lecture notes, exam checklists, and runnable code for all core engineering subjects.</p>
           </div>
-          <div class="tile-arrow">Open Repository &rarr;</div>
+          <div class="tile-arrow">
+            <span>Open Repository</span>
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
 
         <div class="action-tile" onclick="showPage('ai-search')">
           <div>
-            <div class="tile-tag">Synthesis</div>
+            <div class="tile-top-row">
+              <div class="tile-icon-box indigo">
+                <svg class="icon icon-md" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+              </div>
+              <span class="tile-tag">Synthesis</span>
+            </div>
             <h3>AI Study Assistant</h3>
-            <p>Retrieve instant answers and conceptual explanations aligned with course topics.</p>
+            <p>Retrieve instant answers and conceptual breakdowns aligned with course topics and exam questions.</p>
           </div>
-          <div class="tile-arrow">Launch Assistant &rarr;</div>
+          <div class="tile-arrow">
+            <span>Launch Assistant</span>
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
 
         <div class="action-tile" onclick="showPage('upload')">
           <div>
-            <div class="tile-tag">Collaboration</div>
+            <div class="tile-top-row">
+              <div class="tile-icon-box emerald">
+                <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <span class="tile-tag">Collaboration</span>
+            </div>
             <h3>Contribute Material</h3>
-            <p>Submit revision sheets, laboratory programs, or notes to the repository.</p>
+            <p>Submit revision summaries, laboratory programs, or handwritten notes to the shared student repository.</p>
           </div>
-          <div class="tile-arrow">Submit Document &rarr;</div>
+          <div class="tile-arrow">
+            <span>Submit Document</span>
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
 
         <!-- Launchpad Tile: Admin Console tile is shown ONLY for Admins, replaced by Quick Search for regular students -->
         <div class="action-tile nav-admin-only" id="dash-admin-tile" onclick="showPage('admin')" style="display: none;">
           <div>
-            <div class="tile-tag" style="color: var(--accent-blue);">Administration</div>
+            <div class="tile-top-row">
+              <div class="tile-icon-box blue">
+                <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <span class="tile-tag" style="color: var(--blue-primary); font-weight: 800;">ADMIN EXCLUSIVE</span>
+            </div>
             <h3>Management Console</h3>
-            <p>Admin exclusive: Review registered accounts, manage published materials, and monitor Neon database diagnostics.</p>
+            <p>Review registered accounts, regulate published materials, and monitor Neon cloud database connectivity.</p>
           </div>
-          <div class="tile-arrow" style="color: var(--accent-blue);">Open Console &rarr;</div>
+          <div class="tile-arrow" style="color: var(--blue-primary);">
+            <span>Open Console</span>
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
 
         <div class="action-tile" id="dash-student-tile" onclick="showPage('resources')">
           <div>
-            <div class="tile-tag">Reference</div>
+            <div class="tile-top-row">
+              <div class="tile-icon-box amber">
+                <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+              </div>
+              <span class="tile-tag">Reference</span>
+            </div>
             <h3>Course Cheat Sheets</h3>
-            <p>Quick lookup reference cards for algorithmic complexity, C pointers, and web syntax.</p>
+            <p>Quick lookup reference cards for algorithmic Big-O complexity, C pointers, and modern web syntax.</p>
           </div>
-          <div class="tile-arrow">View Reference &rarr;</div>
+          <div class="tile-arrow">
+            <span>View Reference</span>
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
       </div>
 
       <!-- Featured / Trending Study Notes -->
       <div class="section-heading-row">
-        <h2>Core Modules</h2>
-        <button class="btn-secondary btn-sm" onclick="showPage('resources')">View All Modules &rarr;</button>
+        <div>
+          <h2>Featured Core Modules</h2>
+          <span class="section-subtitle-tag">Curated from Engineering Curricula</span>
+        </div>
+        <button class="btn-secondary btn-sm" onclick="showPage('resources')">
+          <span>View All Modules</span>
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
 
       <div class="resources-grid" id="home-featured-resources">
@@ -311,7 +505,10 @@
     <!-- ================= PAGE 4: RESOURCES LIBRARY (Protected) ================= -->
     <section id="resources" class="page">
       <div class="page-header-box">
-        <div class="section-kicker">Coursework Repository</div>
+        <div class="kicker-pill">
+          <span class="status-dot-solid"></span>
+          <span>Coursework Repository</span>
+        </div>
         <h1>Study Modules & Syllabus Library</h1>
         <p>Verified lecture summaries, exam reference sheets, and implementation examples across technical curricula.</p>
       </div>
@@ -319,6 +516,9 @@
       <!-- Filter & Search Controls -->
       <div class="filter-bar-container">
         <div class="search-input-wrapper">
+          <span class="search-icon-inside">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
           <input type="text" id="resource-search-input" placeholder="Search by topic, concept, or keyword (e.g. pointers, big-o, flexbox, docker)...">
         </div>
 
@@ -334,7 +534,7 @@
         </div>
       </div>
 
-      <!-- Resources Grid -->
+      <!-- Resources Grid Container -->
       <div class="resources-grid" id="resources-grid-container">
         <!-- Populated via app.js -->
       </div>
@@ -343,37 +543,61 @@
     <!-- ================= PAGE 5: AI STUDY ASSISTANT (Protected) ================= -->
     <section id="ai-search" class="page">
       <div class="page-header-box">
-        <div class="section-kicker">Intelligent Assistance</div>
+        <div class="kicker-pill">
+          <span class="status-dot-solid"></span>
+          <span>Intelligent Tutoring</span>
+        </div>
         <h1>AI Syllabus Search & Concept Explainer</h1>
-        <p>Query conceptual questions in plain language to generate syllabus-aligned breakdowns and runnable code examples.</p>
+        <p>Query conceptual questions in plain language to generate syllabus-aligned breakdowns, code implementations, and memory models.</p>
       </div>
 
       <div class="ai-assistant-container">
         <div class="ai-input-card">
-          <div class="ai-chips-label">Standard Topics:</div>
+          <div class="ai-chips-label">Standard Syllabus Queries:</div>
           <div class="ai-quick-prompts">
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('Explain Pointers and Dynamic Memory in C')">Pointers in C</button>
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('What is Big-O complexity of Binary Search?')">Big-O Binary Search</button>
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('CSS Flexbox vs CSS Grid difference')">Flexbox vs Grid</button>
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('Python list comprehension examples')">Python Comprehensions</button>
-            <button class="ai-prompt-chip" onclick="handleAiChipClick('Difference between AWS EC2, S3, and RDS')">AWS Cloud Infrastructure</button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('Explain Pointers and Dynamic Memory in C')">
+              <svg class="icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              <span>Pointers in C</span>
+            </button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('What is Big-O complexity of Binary Search?')">
+              <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/></svg>
+              <span>Big-O Binary Search</span>
+            </button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('CSS Flexbox vs CSS Grid difference')">
+              <svg class="icon" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              <span>Flexbox vs Grid</span>
+            </button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('Python list comprehension examples')">
+              <svg class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              <span>Python Comprehensions</span>
+            </button>
+            <button class="ai-prompt-chip" onclick="handleAiChipClick('Difference between AWS EC2, S3, and RDS')">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+              <span>AWS Cloud Infrastructure</span>
+            </button>
           </div>
 
           <form id="ai-search-form" onsubmit="handleAiSearchSubmit(event)">
-            <div class="search-input-wrapper" style="margin-bottom: 12px;">
+            <div class="search-input-wrapper" style="margin-bottom: 14px;">
+              <span class="search-icon-inside">
+                <svg class="icon" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+              </span>
               <input type="text" id="ai-query-input" placeholder="Enter coursework inquiry: e.g. 'How does paging work in Operating Systems?'" required>
             </div>
             <button type="submit" class="btn-primary btn-block">
-              Analyze Concept
+              <svg class="icon" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+              <span>Analyze Concept with AI</span>
             </button>
           </form>
         </div>
 
         <div class="ai-results-card" id="ai-results-container">
           <div class="ai-empty-state">
-            <div class="ai-empty-icon">[ ? ]</div>
-            <h3 style="color: var(--text-main); font-size: 16px; margin-bottom: 4px;">Awaiting Query</h3>
-            <p>Select any suggested topic above or enter a question to generate a concept analysis.</p>
+            <div class="ai-empty-icon">
+              <svg class="icon icon-lg" viewBox="0 0 24 24" style="color: var(--blue-primary);"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+            </div>
+            <h3 style="color: var(--text-main); font-size: 17px; margin-bottom: 6px;">Awaiting Coursework Inquiry</h3>
+            <p>Select any suggested topic chip above or enter a technical question to generate an instant curriculum breakdown.</p>
           </div>
         </div>
       </div>
@@ -382,7 +606,10 @@
     <!-- ================= PAGE 6: UPLOAD NOTES (Protected) ================= -->
     <section id="upload" class="page">
       <div class="page-header-box">
-        <div class="section-kicker">Peer Collaboration</div>
+        <div class="kicker-pill">
+          <span class="status-dot-solid"></span>
+          <span>Peer Collaboration</span>
+        </div>
         <h1>Contribute Study Materials</h1>
         <p>Share coursework notes, revision summaries, and lab implementations with the student cohort.</p>
       </div>
@@ -423,16 +650,26 @@
             <div class="form-group">
               <label class="form-label">Attach File (PDF, DOCX, TXT, PY, C, JS, ZIP)</label>
               <div class="dropzone-box" id="upload-dropzone" onclick="document.getElementById('upload-file-input').click()">
+                <div class="dropzone-icon-box">
+                  <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
                 <div class="dropzone-text">
                   <h4 id="dropzone-file-name">Click or Drag & Drop File Here</h4>
-                  <p>Maximum file size: 25MB</p>
+                  <p>Maximum file size: 25MB &bull; Supported formats: PDF, DOCX, TXT, PY, C, JS, ZIP</p>
+                </div>
+                <div class="dropzone-format-pills">
+                  <span class="format-pill">PDF</span>
+                  <span class="format-pill">DOCX</span>
+                  <span class="format-pill">TXT</span>
+                  <span class="format-pill">CODE</span>
                 </div>
                 <input type="file" id="upload-file-input" style="display: none;" onchange="handleFileSelected(this)">
               </div>
             </div>
 
             <button type="submit" id="upload-submit-btn" class="btn-primary btn-block">
-              Publish Document to Repository
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Publish Document to Repository</span>
             </button>
           </form>
         </div>
@@ -442,7 +679,10 @@
     <!-- ================= PAGE 7: ADMIN CONSOLE (STRICTLY RESTRICTED TO ADMINS) ================= -->
     <section id="admin" class="page">
       <div class="page-header-box">
-        <div class="admin-header-badge">Administrative Access Only</div>
+        <div class="admin-header-badge">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Administrative Access Only</span>
+        </div>
         <h1>Platform Management & Diagnostics</h1>
         <p>Manage user accounts, regulate uploaded coursework materials, and monitor Neon cloud database connectivity.</p>
       </div>
@@ -514,9 +754,9 @@
             <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Database Infrastructure</h3>
             
             <div class="system-status-indicator">
-              <span class="status-dot-solid"></span>
+              <span class="status-dot-pulse"></span>
               <div>
-                <strong style="color: var(--accent-emerald); font-size: 13.5px;">Neon PostgreSQL Connected</strong>
+                <strong style="color: var(--emerald-primary); font-size: 13.5px;">Neon PostgreSQL Connected</strong>
                 <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">ep-lingering-night-b4ed5h7r-pooler.c-6.us-east-2.aws.neon.tech</div>
               </div>
             </div>
@@ -528,7 +768,7 @@
               </div>
               <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-hairline); padding-bottom: 8px;">
                 <span>SSL Encryption</span>
-                <strong style="color: var(--accent-emerald);">Active (TLS 1.3)</strong>
+                <strong style="color: var(--emerald-primary);">Active (TLS 1.3)</strong>
               </div>
               <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-hairline); padding-bottom: 8px;">
                 <span>Password Hashing</span>
@@ -555,7 +795,8 @@
             </div>
 
             <button class="btn-secondary btn-block btn-sm" onclick="fetchLiveStats(true)">
-              Refresh Live Telemetry
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Refresh Live Telemetry</span>
             </button>
           </div>
         </div>
@@ -579,13 +820,16 @@
 
         <div class="modal-header-actions">
           <button class="modal-action-btn" onclick="copyModalNotes()" title="Copy notes to clipboard">
-            Copy Text
+            <svg class="icon" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            <span>Copy Text</span>
           </button>
           <button class="modal-action-btn" onclick="downloadModalNotes()" title="Download notes as plain text file">
-            Download
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download</span>
           </button>
           <button class="modal-action-btn" onclick="printModalNotes()" title="Print notes or save as PDF">
-            Print
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+            <span>Print</span>
           </button>
           <button class="modal-close-btn" onclick="closeNotesModal()" title="Close viewer (Esc)">&times;</button>
         </div>

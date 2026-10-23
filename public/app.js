@@ -480,11 +480,17 @@ function renderResourcesGrid() {
   container.innerHTML = filtered
     .map(
       (item) => `
-    <div class="resource-card">
+    <div class="resource-card" data-subject="${escapeHtml(item.subject)}">
       <div>
         <div class="card-top-tags">
-          <span class="subject-badge">${escapeHtml(item.subject)}</span>
-          <span class="reading-pill">${escapeHtml(item.reading_time || "5 min read")}</span>
+          <span class="subject-badge" data-subject="${escapeHtml(item.subject)}">
+            <span class="subject-dot"></span>
+            ${escapeHtml(item.subject)}
+          </span>
+          <span class="reading-pill">
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${escapeHtml(item.reading_time || "5 min read")}
+          </span>
         </div>
         <h3>${escapeHtml(item.title)}</h3>
         <p>${escapeHtml(item.summary)}</p>
@@ -492,10 +498,12 @@ function renderResourcesGrid() {
 
       <div class="resource-card-actions">
         <button class="btn-primary btn-sm btn-block" onclick="openNotesModal('${item.id}')">
-          Read Notes
+          <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span>Read Notes</span>
         </button>
         <button class="btn-secondary btn-sm" onclick="downloadResourceText('${item.id}')" title="Download plain text file">
-          Download
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Download</span>
         </button>
       </div>
     </div>
@@ -512,11 +520,17 @@ function renderHomeTrending() {
   container.innerHTML = featured
     .map(
       (item) => `
-    <div class="resource-card">
+    <div class="resource-card" data-subject="${escapeHtml(item.subject)}">
       <div>
         <div class="card-top-tags">
-          <span class="subject-badge">${escapeHtml(item.subject)}</span>
-          <span class="reading-pill">${escapeHtml(item.reading_time || "5 min read")}</span>
+          <span class="subject-badge" data-subject="${escapeHtml(item.subject)}">
+            <span class="subject-dot"></span>
+            ${escapeHtml(item.subject)}
+          </span>
+          <span class="reading-pill">
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${escapeHtml(item.reading_time || "5 min read")}
+          </span>
         </div>
         <h3>${escapeHtml(item.title)}</h3>
         <p>${escapeHtml(item.summary)}</p>
@@ -524,7 +538,8 @@ function renderHomeTrending() {
 
       <div class="resource-card-actions">
         <button class="btn-primary btn-sm btn-block" onclick="openNotesModal('${item.id}')">
-          Read Notes
+          <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span>Read Notes</span>
         </button>
       </div>
     </div>
@@ -572,7 +587,11 @@ function openNotesModal(resourceId) {
 
   const modal = document.getElementById("notes-modal");
   document.getElementById("modal-title").textContent = resource.title;
-  document.getElementById("modal-subject").textContent = resource.subject;
+  const modalSubject = document.getElementById("modal-subject");
+  if (modalSubject) {
+    modalSubject.textContent = resource.subject;
+    modalSubject.setAttribute("data-subject", resource.subject);
+  }
   document.getElementById("modal-reading-time").textContent = resource.reading_time || "5 min read";
   document.getElementById("modal-level").textContent = resource.level || "Core Syllabus";
   document.getElementById("modal-summary").textContent = resource.summary;
@@ -687,35 +706,43 @@ function handleAiSearchSubmit(e) {
       const topMatch = matched[0];
       resultsContainer.innerHTML = `
         <div>
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-            <span class="subject-badge">AI Concept Synthesis</span>
-            <span style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-emerald); font-weight: 700;">Matched Syllabus Material</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+            <span class="subject-badge" data-subject="${escapeHtml(topMatch.subject)}">
+              <span class="subject-dot"></span>
+              ${escapeHtml(topMatch.subject)}
+            </span>
+            <span class="sample-verified-badge">
+              <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><polyline points="20 6 9 17 4 12"/></svg>
+              Matched Syllabus Material
+            </span>
           </div>
           
-          <h2 style="font-family: var(--font-heading); font-size: 20px; font-weight: 800; margin-bottom: 8px;">
+          <h2 style="font-family: var(--font-heading); font-size: 22px; font-weight: 800; margin-bottom: 10px; color: var(--text-main);">
             ${escapeHtml(topMatch.title)}
           </h2>
           
           <div class="modal-callout" style="margin-bottom: 16px;">
             <strong>Core Concept:</strong>
-            <p style="margin-top: 4px; font-size: 13.5px; color: var(--text-body);">${escapeHtml(topMatch.summary)}</p>
+            <p style="margin-top: 4px; font-size: 13.5px; color: var(--text-body); line-height: 1.6;">${escapeHtml(topMatch.summary)}</p>
           </div>
 
-          <div style="background: var(--bg-subtle); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 18px;">
-            <h4 style="font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">Key Curriculum Principles:</h4>
-            <ul style="padding-left: 18px; font-size: 13px; color: var(--text-body); line-height: 1.6;">
+          <div style="background: var(--bg-subtle); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 18px; margin-bottom: 20px;">
+            <h4 style="font-size: 13.5px; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Key Curriculum Principles:</h4>
+            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-body); line-height: 1.65;">
               <li>Examine architectural and runtime memory implications.</li>
               <li>Analyze best/worst case computational complexity bounds.</li>
               <li>Adhere to safe syntax, error handling, and parameterization.</li>
             </ul>
           </div>
 
-          <div style="display: flex; gap: 8px; align-items: center;">
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <button class="btn-primary btn-sm" onclick="openNotesModal('${topMatch.id}')">
-              Read Complete ${escapeHtml(topMatch.subject)} Module
+              <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              <span>Read Complete ${escapeHtml(topMatch.subject)} Module</span>
             </button>
             <button class="btn-secondary btn-sm" onclick="downloadResourceText('${topMatch.id}')">
-              Download Plain Text
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Download Plain Text</span>
             </button>
           </div>
         </div>

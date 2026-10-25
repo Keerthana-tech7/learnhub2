@@ -26,8 +26,10 @@ function hasUserRegistered() {
 
 function markUserAsRegistered(email) {
   localStorage.setItem(KEY_REGISTERED, "true");
-  if (email) {
+  if (email && email.toLowerCase() !== "admin@studyportal.edu") {
     localStorage.setItem(KEY_LAST_EMAIL, email);
+  } else {
+    localStorage.removeItem(KEY_LAST_EMAIL);
   }
 }
 
@@ -38,8 +40,11 @@ function isUserLoggedIn() {
 function setLoggedInUser(user) {
   sessionStorage.setItem(KEY_LOGGED_IN, "true");
   sessionStorage.setItem(KEY_USER_DATA, JSON.stringify(user));
-  if (user && user.email) {
+  if (user && user.email && user.role !== "admin" && user.email.toLowerCase() !== "admin@studyportal.edu") {
     markUserAsRegistered(user.email);
+  } else {
+    localStorage.setItem(KEY_REGISTERED, "true");
+    localStorage.removeItem(KEY_LAST_EMAIL);
   }
   updateNavUI();
 }
@@ -214,6 +219,10 @@ function showPage(pageId, pushToHistory = true) {
 
   updateNavUI();
 
+  if (pageId === "login" || pageId === "register") {
+    clearAdminAutofill();
+  }
+
   // Fresh data when visiting resources or home
   if (pageId === "resources" || pageId === "home") {
     fetchResources();
@@ -262,6 +271,11 @@ function handleLogoClick() {
 // ================= INITIAL FLOW ROUTER =================
 
 async function initializeAppFlow() {
+  // Purge any stored admin credentials/email from local storage
+  if (localStorage.getItem(KEY_LAST_EMAIL) === "admin@studyportal.edu") {
+    localStorage.removeItem(KEY_LAST_EMAIL);
+  }
+
   // First, verify if an active session exists on backend
   try {
     const res = await fetch("/api/session");
@@ -281,16 +295,13 @@ async function initializeAppFlow() {
   if (isUserLoggedIn()) {
     showPage("home");
   } else if (hasUserRegistered()) {
-    // Returning user: show Login page directly
+    // Returning user: show Login page directly with clean fields
     showPage("login");
-    const lastEmail = localStorage.getItem(KEY_LAST_EMAIL);
-    const loginEmailInput = document.getElementById("login-email");
-    if (loginEmailInput && lastEmail) {
-      loginEmailInput.value = lastEmail;
-    }
+    clearAdminAutofill();
   } else {
     // First time visitor: show Register page directly
     showPage("register");
+    clearAdminAutofill();
   }
 
   // Fetch initial resources in background
@@ -462,12 +473,15 @@ async function logoutUser() {
   clearSessionState();
   showToast("You have been signed out.");
 
-  // Enforce returning user flow: redirect to login
+  // Enforce returning user flow: redirect to login with clean inputs
   showPage("login");
-  const lastEmail = localStorage.getItem(KEY_LAST_EMAIL);
   const loginEmailInput = document.getElementById("login-email");
-  if (loginEmailInput && lastEmail) {
-    loginEmailInput.value = lastEmail;
+  if (loginEmailInput) {
+    loginEmailInput.value = "";
+  }
+  const loginPasswordInput = document.getElementById("login-password");
+  if (loginPasswordInput) {
+    loginPasswordInput.value = "";
   }
 }
 
@@ -1153,8 +1167,23 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+// Helper: Safeguard to wipe any admin credentials or browser autofill on public auth screens
+function clearAdminAutofill() {
+  const loginEmail = document.getElementById("login-email");
+  if (loginEmail && (!loginEmail.value || loginEmail.value.toLowerCase().includes("admin"))) {
+    loginEmail.value = "";
+  }
+  const regEmail = document.getElementById("register-email");
+  if (regEmail && (!regEmail.value || regEmail.value.toLowerCase().includes("admin"))) {
+    regEmail.value = "";
+  }
+}
+
 // ================= BOOTSTRAP ON LOAD =================
 
 document.addEventListener("DOMContentLoaded", () => {
   initializeAppFlow();
+  clearAdminAutofill();
+  setTimeout(clearAdminAutofill, 150);
+  setTimeout(clearAdminAutofill, 500);
 });

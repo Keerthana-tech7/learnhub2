@@ -219,6 +219,10 @@ function showPage(pageId, pushToHistory = true) {
 
   updateNavUI();
 
+  if (pageId === "login" || pageId === "register") {
+    clearAdminAutofill();
+  }
+
   // Fresh data when visiting resources or home
   if (pageId === "resources" || pageId === "home") {
     fetchResources();
@@ -293,13 +297,11 @@ async function initializeAppFlow() {
   } else if (hasUserRegistered()) {
     // Returning user: show Login page directly with clean fields
     showPage("login");
-    const loginEmailInput = document.getElementById("login-email");
-    if (loginEmailInput) {
-      loginEmailInput.value = "";
-    }
+    clearAdminAutofill();
   } else {
     // First time visitor: show Register page directly
     showPage("register");
+    clearAdminAutofill();
   }
 
   // Fetch initial resources in background
@@ -1165,8 +1167,23 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+// Helper: Safeguard to wipe any admin credentials or browser autofill on public auth screens
+function clearAdminAutofill() {
+  const loginEmail = document.getElementById("login-email");
+  if (loginEmail && (!loginEmail.value || loginEmail.value.toLowerCase().includes("admin"))) {
+    loginEmail.value = "";
+  }
+  const regEmail = document.getElementById("register-email");
+  if (regEmail && (!regEmail.value || regEmail.value.toLowerCase().includes("admin"))) {
+    regEmail.value = "";
+  }
+}
+
 // ================= BOOTSTRAP ON LOAD =================
 
 document.addEventListener("DOMContentLoaded", () => {
   initializeAppFlow();
+  clearAdminAutofill();
+  setTimeout(clearAdminAutofill, 150);
+  setTimeout(clearAdminAutofill, 500);
 });

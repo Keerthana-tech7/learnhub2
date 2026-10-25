@@ -5,6 +5,12 @@ const fs = require("fs");
 const multer = require("multer");
 const bcrypt = require("bcryptjs");
 const sql = require("./database");
+const {
+  ADMIN_EMAIL,
+  sendAdminRegistrationNotification,
+  sendTestNotification,
+  getEmailConfigStatus
+} = require("./mailer");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -403,10 +409,24 @@ app.post("/api/register", async (req, res) => {
     const inserted = await sql`
       INSERT INTO users (name, email, password, role)
       VALUES (${cleanName}, ${cleanEmail}, ${hashedPassword}, ${assignedRole})
-      RETURNING id, name, email, role
+      RETURNING id, name, email, role, created_at
     `;
 
     const newUser = inserted[0];
+
+    // Asynchronously dispatch admin notification email with user's name, email & registration time
+    const portalUrl = `${req.protocol}://${req.get("host")}/#admin`;
+    sendAdminRegistrationNotification({
+      name: newUser.name,
+      email: newUser.email,
+      time: newUser.created_at || new Date(),
+      role: newUser.role || assignedRole,
+      id: newUser.id,
+      portalUrl: portalUrl
+    }).catch((mailErr) => {
+      console.warn("Notice: Admin registration notification dispatch encounter:", mailErr.message);
+    });
+
     res.json({
       success: true,
       message: "Registration successful! Redirecting to login...",
@@ -605,11 +625,13 @@ app.get("/api/stats", async (req, res) => {
     const userCount = await sql`SELECT COUNT(*)::int AS count FROM users`;
     const resCount = await sql`SELECT COUNT(*)::int AS count FROM resources`;
     const subjectCount = await sql`SELECT COUNT(DISTINCT subject)::int AS count FROM resources`;
+    const notifCount = await sql`SELECT COUNT(*)::int AS count FROM admin_notifications`.catch(() => [{ count: 0 }]);
 
     res.json({
       users: (userCount && userCount[0] ? userCount[0].count : 8),
       resources: (resCount && resCount[0] ? resCount[0].count : 5),
       subjects: (subjectCount && subjectCount[0] ? subjectCount[0].count : 5),
+      notifications: (notifCount && notifCount[0] ? notifCount[0].count : 0),
       reads: "2.4k+"
     });
   } catch (e) {
@@ -617,6 +639,7 @@ app.get("/api/stats", async (req, res) => {
       users: 8,
       resources: 5,
       subjects: 5,
+      notifications: 0,
       reads: "2.4k+"
     });
   }
@@ -690,6 +713,48 @@ app.delete("/api/admin/resources/:id", requireAdmin, async (req, res) => {
     res.json({ success: true, message: "Resource removed successfully." });
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to remove resource." });
+  }
+});
+
+// Get admin registration notifications log (Admin only)
+app.get("/api/admin/notifications", requireAdmin, async (req, res) => {
+  try {
+    const notifications = await sql`
+      SELECT id, type, recipient, user_name, user_email, user_role, registered_at, status, details
+      FROM admin_notifications
+      ORDER BY id DESC
+      LIMIT 100
+    `;
+    res.json({ success: true, notifications });
+  } catch (err) {
+    console.error("Admin notifications fetch error:", err);
+    res.status(500).json({ success: false, message: "Could not fetch notifications history." });
+  }
+});
+
+// Trigger test notification email to Admin (Admin only)
+app.post("/api/admin/notifications/test", requireAdmin, async (req, res) => {
+  try {
+    const targetEmail = req.body && req.body.email ? req.body.email : ADMIN_EMAIL;
+    const result = await sendTestNotification(targetEmail);
+    res.json({
+      success: true,
+      message: `Test registration notification dispatched to administrator (${ADMIN_EMAIL}).`,
+      result
+    });
+  } catch (err) {
+    console.error("Admin test notification dispatch error:", err);
+    res.status(500).json({ success: false, message: err.message || "Failed to dispatch test notification." });
+  }
+});
+
+// Email notification diagnostic & configuration status (Admin only)
+app.get("/api/admin/email-status", requireAdmin, (req, res) => {
+  try {
+    const status = getEmailConfigStatus();
+    res.json({ success: true, status });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Could not retrieve email configuration status." });
   }
 });
 

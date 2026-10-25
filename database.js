@@ -170,7 +170,22 @@ async function initDB() {
       console.log("✓ Existing admin user role updated to 'admin'.");
     }
 
-    console.log("✓ Neon PostgreSQL connected: `users` (with role-based access) & `resources` tables verified.");
+    // 4. Create admin notifications table
+    await sql`
+      CREATE TABLE IF NOT EXISTS admin_notifications (
+        id SERIAL PRIMARY KEY,
+        type TEXT DEFAULT 'user_registered',
+        recipient TEXT NOT NULL,
+        user_name TEXT NOT NULL,
+        user_email TEXT NOT NULL,
+        user_role TEXT DEFAULT 'user',
+        registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'pending',
+        details TEXT
+      )
+    `;
+
+    console.log("✓ Neon PostgreSQL connected: `users`, `resources` & `admin_notifications` tables verified.");
   } catch (err) {
     console.error("Database initialization notice:", err.message);
   }

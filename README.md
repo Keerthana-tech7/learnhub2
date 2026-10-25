@@ -149,15 +149,16 @@ Designed for quick conceptual query resolution:
 - **Matching Algorithm:** Scans the notes database across titles, subjects, summaries, and full content to return matching cards with reading times and direct *"Read Full Notes"* actions.
 
 ### 🛠️ Admin Module *(Protected)*
-A control dashboard designed for resource moderation:
-- **Metric Cards:** Displays published resources count, pending review counter, and system health status.
-- **Moderation Queue:** Sample community submission card displaying submitted file metadata and author information.
-- **Action Buttons:** Interactive **"✓ Approve & Publish"** and **"✕ Reject"** buttons that dynamically update card states and pending review counters.
-- *Protected Route:* Requires student login to access.
+A control dashboard designed for user management, resource moderation, and real-time alerts:
+- **Email Alerts & Notifications Tab:** Instant automated email dispatched to the administrator (`admin.studyportal@gmail.com`) whenever any student registers, featuring their **name**, **email**, and **registration timestamp**. Includes an on-demand test alert button and persistent PostgreSQL audit history.
+- **User Accounts Directory:** Complete overview of all registered members with real-time role promotion/demotion and account management.
+- **Metric Cards & Telemetry:** Displays total accounts, active coursework modules, dispatched notification count, and Neon DB health status.
+- *Protected Route:* Restricted to verified administrator credentials.
 
 ### 🔐 Login & Register Module
 Manages student account creation and session state:
-- **Register Form:** Accepts Full Name, College/Personal Email, and Password (minimum 6 characters). Hashes the password using `bcryptjs` and stores the user in SQLite.
+- **Register Form:** Accepts Full Name, College/Personal Email, and Password (minimum 6 characters). Hashes the password using `bcryptjs` (10 rounds) and stores the user in Neon PostgreSQL.
+- **Automatic Admin Email Alert:** Upon successful registration, an automated notification is instantly transmitted to the administrator's email (`admin.studyportal@gmail.com`) with the registrant's name, email address, and exact timestamp.
 - **Login Form:** Validates email and password, creates an active server session, stores user details in `sessionStorage`, and redirects the student to the Home page.
 - **Dynamic Header UI:** Upon login, auth links (*Login / Register*) are replaced with a student greeting badge (`Student Name`) and a **Logout** button.
 - **Logout Action:** Calls `/api/logout`, clears session cookies and local storage, and securely returns the user to the login screen.

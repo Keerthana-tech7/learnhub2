@@ -230,6 +230,13 @@ function showPage(pageId, pushToHistory = true) {
     fetchResources();
     fetchLiveStats();
   }
+
+  // Admin page load
+  if (pageId === "admin") {
+    loadAdminUsersTable();
+    loadAdminNotificationsTable();
+    fetchLiveStats();
+  }
 }
 
 function navigateBack() {
@@ -956,6 +963,7 @@ function switchAdminTab(tabName, btn) {
 
   if (tabName === "users") loadAdminUsersTable();
   if (tabName === "resources") loadAdminResourcesTable();
+  if (tabName === "notifications") loadAdminNotificationsTable();
 }
 
 async function loadAdminUsersTable() {
@@ -1104,6 +1112,139 @@ async function deleteResourceItem(resourceId, title) {
   }
 }
 
+// ================= ADMIN EMAIL NOTIFICATIONS =================
+
+async function loadAdminNotificationsTable() {
+  const tbody = document.getElementById("admin-notifications-table-body");
+  const totalBadge = document.getElementById("admin-notif-total-badge");
+  const counterBadge = document.getElementById("admin-notif-counter");
+  const telemetryBadge = document.getElementById("admin-notif-stat-count");
+  const targetEmailDisplay = document.getElementById("admin-target-email-display");
+  const engineStatusDisplay = document.getElementById("admin-email-engine-status");
+  if (!tbody) return;
+
+  try {
+    // 1. Fetch email status
+    fetch("/api/admin/email-status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.status) {
+          if (targetEmailDisplay) targetEmailDisplay.textContent = data.status.adminEmail;
+          if (engineStatusDisplay) {
+            engineStatusDisplay.textContent = data.status.isConfigured
+              ? `Live SMTP (${data.status.sender})`
+              : "Nodemailer (Active / Logging)";
+          }
+        }
+      })
+      .catch(() => {});
+
+    // 2. Fetch notifications log
+    const res = await fetch("/api/admin/notifications");
+    const data = await res.json();
+
+    if (res.ok && data.notifications) {
+      const count = data.notifications.length;
+      if (totalBadge) totalBadge.textContent = `${count} Alert${count === 1 ? "" : "s"}`;
+      if (counterBadge) counterBadge.textContent = count;
+      if (telemetryBadge) telemetryBadge.textContent = count;
+
+      if (count === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="padding: 24px; text-align: center; color: var(--text-dim);">
+              No registration alerts dispatched yet. New notifications will appear automatically here as users register.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = data.notifications
+        .map((n) => {
+          const dateObj = n.registered_at ? new Date(n.registered_at) : new Date();
+          const dateStr = dateObj.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric"
+          });
+          const timeStr = dateObj.toLocaleTimeString(undefined, {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          });
+
+          const isDelivered = n.status === "delivered";
+          const isFailed = n.status && n.status.startsWith("failed");
+          const badgeClass = isDelivered ? "delivered" : (isFailed ? "failed" : "logged");
+          const badgeText = isDelivered ? "DELIVERED TO INBOX" : (isFailed ? "FAILED" : "DISPATCHED & LOGGED");
+
+          return `
+            <tr>
+              <td style="font-family: var(--font-mono); color: var(--text-dim);">${n.id}</td>
+              <td>
+                <strong style="color: var(--text-main);">${escapeHtml(n.user_name || "New Student")}</strong>
+                <span class="role-badge ${n.user_role === 'admin' ? 'admin' : 'user'}" style="margin-left: 6px; font-size: 9px;">${escapeHtml(n.user_role || 'user')}</span>
+              </td>
+              <td>
+                <span style="font-family: var(--font-mono); font-size: 12.5px; color: var(--text-main);">${escapeHtml(n.user_email)}</span>
+              </td>
+              <td>
+                <div style="font-size: 12.5px; color: var(--text-main); font-weight: 600;">${dateStr}</div>
+                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">${timeStr}</div>
+              </td>
+              <td>
+                <span style="font-family: var(--font-mono); font-size: 12px; color: var(--blue-primary);">${escapeHtml(n.recipient || "admin.studyportal@gmail.com")}</span>
+              </td>
+              <td style="text-align: right;">
+                <span class="status-badge ${badgeClass}">${badgeText}</span>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    } else {
+      tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">${data.message || "Failed to load notifications."}</td></tr>`;
+    }
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">Failed to connect to notifications service.</td></tr>`;
+  }
+}
+
+async function triggerTestAdminNotification() {
+  const btn = document.getElementById("btn-test-email");
+  const originalHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `
+      <span class="btn-spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px;"></span>
+      <span>Dispatching Alert...</span>
+    `;
+  }
+
+  try {
+    const res = await fetch("/api/admin/notifications/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showToast(data.message || "Test alert notification dispatched to admin mailbox!");
+      loadAdminNotificationsTable();
+    } else {
+      showToast(data.message || "Failed to dispatch test alert.");
+    }
+  } catch (e) {
+    showToast("Error connecting to notification endpoint.");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+
 // ================= LIVE STATS & TELEMETRY =================
 
 async function fetchLiveStats(showNotification = false) {
@@ -1119,6 +1260,8 @@ async function fetchLiveStats(showNotification = false) {
 
       const adminUserEl = document.getElementById("admin-user-count");
       const adminResEl = document.getElementById("admin-res-count");
+      const adminNotifEl = document.getElementById("admin-notif-stat-count");
+      const adminNotifCounter = document.getElementById("admin-notif-counter");
 
       if (userEl) userEl.textContent = stats.users;
       if (resEl) resEl.textContent = stats.resources;
@@ -1127,6 +1270,8 @@ async function fetchLiveStats(showNotification = false) {
 
       if (adminUserEl) adminUserEl.textContent = stats.users;
       if (adminResEl) adminResEl.textContent = stats.resources;
+      if (adminNotifEl && typeof stats.notifications !== "undefined") adminNotifEl.textContent = stats.notifications;
+      if (adminNotifCounter && typeof stats.notifications !== "undefined") adminNotifCounter.textContent = stats.notifications;
 
       if (showNotification) {
         showToast("Live telemetry refreshed.");

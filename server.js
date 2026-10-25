@@ -399,7 +399,7 @@ app.post("/api/register", async (req, res) => {
 
     const hashedPassword = bcrypt.hashSync(password, 10);
 
-    const assignedRole = cleanEmail === "admin@studyportal.edu" ? "admin" : "user";
+    const assignedRole = (cleanEmail === "admin.studyportal@gmail.com" || cleanEmail === "admin@studyportal.edu") ? "admin" : "user";
     const inserted = await sql`
       INSERT INTO users (name, email, password, role)
       VALUES (${cleanName}, ${cleanEmail}, ${hashedPassword}, ${assignedRole})
@@ -476,7 +476,7 @@ app.post("/api/login", async (req, res) => {
       });
     }
 
-    const userRole = user.role || (cleanEmail === "admin@studyportal.edu" ? "admin" : "user");
+    const userRole = user.role || ((cleanEmail === "admin.studyportal@gmail.com" || cleanEmail === "admin@studyportal.edu") ? "admin" : "user");
 
     req.session.user = {
       id: user.id,
@@ -672,7 +672,7 @@ app.delete("/api/admin/users/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const targetUser = await sql`SELECT email FROM users WHERE id = ${id}`;
-    if (targetUser.length > 0 && targetUser[0].email === "admin@studyportal.edu") {
+    if (targetUser.length > 0 && (targetUser[0].email === "admin.studyportal@gmail.com" || targetUser[0].email === "admin@studyportal.edu")) {
       return res.status(400).json({ success: false, message: "Cannot delete the primary master administrator account." });
     }
     await sql`DELETE FROM users WHERE id = ${id}`;

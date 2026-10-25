@@ -26,7 +26,8 @@ function hasUserRegistered() {
 
 function markUserAsRegistered(email) {
   localStorage.setItem(KEY_REGISTERED, "true");
-  if (email && email.toLowerCase() !== "admin@studyportal.edu") {
+  const isMasterAdmin = email && (email.toLowerCase() === "admin.studyportal@gmail.com" || email.toLowerCase() === "admin@studyportal.edu");
+  if (email && !isMasterAdmin) {
     localStorage.setItem(KEY_LAST_EMAIL, email);
   } else {
     localStorage.removeItem(KEY_LAST_EMAIL);
@@ -40,7 +41,8 @@ function isUserLoggedIn() {
 function setLoggedInUser(user) {
   sessionStorage.setItem(KEY_LOGGED_IN, "true");
   sessionStorage.setItem(KEY_USER_DATA, JSON.stringify(user));
-  if (user && user.email && user.role !== "admin" && user.email.toLowerCase() !== "admin@studyportal.edu") {
+  const isMasterAdmin = user && user.email && (user.email.toLowerCase() === "admin.studyportal@gmail.com" || user.email.toLowerCase() === "admin@studyportal.edu");
+  if (user && user.email && user.role !== "admin" && !isMasterAdmin) {
     markUserAsRegistered(user.email);
   } else {
     localStorage.setItem(KEY_REGISTERED, "true");
@@ -272,7 +274,8 @@ function handleLogoClick() {
 
 async function initializeAppFlow() {
   // Purge any stored admin credentials/email from local storage
-  if (localStorage.getItem(KEY_LAST_EMAIL) === "admin@studyportal.edu") {
+  const lastEmail = localStorage.getItem(KEY_LAST_EMAIL);
+  if (lastEmail === "admin.studyportal@gmail.com" || lastEmail === "admin@studyportal.edu") {
     localStorage.removeItem(KEY_LAST_EMAIL);
   }
 
@@ -984,7 +987,7 @@ async function loadAdminUsersTable() {
               <td style="text-align: right;">
                 <div class="admin-table-actions" style="justify-content: flex-end;">
                   ${
-                    u.email === "admin@studyportal.edu"
+                    (u.email === "admin.studyportal@gmail.com" || u.email === "admin@studyportal.edu")
                       ? `<span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">Master</span>`
                       : `
                         <button class="btn-secondary btn-sm" onclick="toggleUserRole(${u.id}, '${isAdmin ? 'user' : 'admin'}')">

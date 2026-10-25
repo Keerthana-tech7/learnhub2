@@ -129,7 +129,31 @@ async function initDB() {
     `;
 
     // 3. Ensure master admin account exists
-    const adminEmail = "admin@studyportal.edu";
+    const adminEmail = "admin.studyportal@gmail.com";
+    const legacyAdminEmail = "admin@studyportal.edu";
+
+    // Migrate legacy admin if present, preserving password
+    try {
+      const legacyAdmin = await sql`
+        SELECT id FROM users WHERE LOWER(email) = LOWER(${legacyAdminEmail})
+      `;
+      if (legacyAdmin.length > 0) {
+        const newAdminExists = await sql`
+          SELECT id FROM users WHERE LOWER(email) = LOWER(${adminEmail})
+        `;
+        if (newAdminExists.length === 0) {
+          await sql`
+            UPDATE users 
+            SET email = ${adminEmail}, role = 'admin' 
+            WHERE id = ${legacyAdmin[0].id}
+          `;
+          console.log(`✓ Migrated master administrator to ${adminEmail} (password preserved).`);
+        }
+      }
+    } catch (migErr) {
+      console.warn("Notice during admin migration check:", migErr.message);
+    }
+
     const existingAdmin = await sql`
       SELECT id, role FROM users WHERE LOWER(email) = LOWER(${adminEmail})
     `;
@@ -140,7 +164,7 @@ async function initDB() {
         INSERT INTO users (name, email, password, role)
         VALUES ('System Administrator', ${adminEmail}, ${hashedAdminPassword}, 'admin')
       `;
-      console.log("✓ Master administrator initialized: admin@studyportal.edu / adminpassword123");
+      console.log(`✓ Master administrator initialized: ${adminEmail} / adminpassword123`);
     } else if (existingAdmin[0].role !== "admin") {
       await sql`UPDATE users SET role = 'admin' WHERE id = ${existingAdmin[0].id}`;
       console.log("✓ Existing admin user role updated to 'admin'.");

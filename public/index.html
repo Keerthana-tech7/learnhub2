@@ -481,6 +481,23 @@
             <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
         </div>
+
+        <div class="action-tile" id="dash-pyq-tile" onclick="openPreviousYearQuestionPapers()" style="border-color: rgba(99, 102, 241, 0.3);">
+          <div>
+            <div class="tile-top-row">
+              <div class="tile-icon-box" style="background: rgba(99, 102, 241, 0.1); color: #4f46e5;">
+                <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              </div>
+              <span class="tile-tag" style="color: #4f46e5; font-weight: 800; background: rgba(99, 102, 241, 0.08); padding: 2px 8px; border-radius: 4px;">EXAM PREPARATION</span>
+            </div>
+            <h3>Previous Year Question Papers</h3>
+            <p>Access authentic semester question papers (2023 &amp; 2024) across core engineering and computing disciplines.</p>
+          </div>
+          <div class="tile-arrow" style="color: #4f46e5;">
+            <span>Browse Question Papers (12)</span>
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
       </div>
 
       <!-- Featured / Trending Study Notes -->
@@ -524,23 +541,62 @@
           <span class="search-icon-inside">
             <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </span>
-          <input type="text" id="resource-search-input" placeholder="Search by topic, concept, or keyword (e.g. pointers, big-o, flexbox, docker)...">
+          <input type="text" id="resource-search-input" placeholder="Search by topic, paper title, or exam concept (e.g. 2024 exam, pointers, AVL rotations, SQL)...">
         </div>
 
-        <div class="filter-chips-row">
-          <span class="filter-chip-label">Subject:</span>
-          <button class="filter-chip active" data-subject="all">All Disciplines</button>
-          <button class="filter-chip" data-subject="C Programming">C Programming</button>
-          <button class="filter-chip" data-subject="Data Structures">Data Structures</button>
-          <button class="filter-chip" data-subject="Web Development">Web Development</button>
-          <button class="filter-chip" data-subject="Python Programming">Python</button>
-          <button class="filter-chip" data-subject="Cloud & DevOps">Cloud & DevOps</button>
-          <button class="filter-chip" data-subject="Operating Systems">Operating Systems</button>
+        <!-- Two Columns: Previous Year Question Papers & Disciplines -->
+        <div class="filter-two-columns">
+          <!-- Column 1: Previous Year Questions Papers -->
+          <div class="filter-column filter-column-pyq">
+            <div class="filter-column-header">
+              <div class="filter-column-title">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span>Previous Year Questions Papers</span>
+              </div>
+              <span class="filter-column-count" id="count-pyq-badge">12 Papers</span>
+            </div>
+            
+            <div class="material-type-pills" id="material-type-selector">
+              <button class="type-pill active" data-type="all" onclick="filterByMaterialType('all', this)">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+                <span>All Materials (<span id="count-all-mat">18</span>)</span>
+              </button>
+              <button class="type-pill type-pill-pyq" data-type="pyq" onclick="filterByMaterialType('pyq', this)">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span>Previous Year Question Papers (<span id="count-pyq-mat">12</span>)</span>
+              </button>
+              <button class="type-pill" data-type="notes" onclick="filterByMaterialType('notes', this)">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                <span>Lecture Notes (<span id="count-notes-mat">6</span>)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Column 2: Disciplines -->
+          <div class="filter-column filter-column-disciplines">
+            <div class="filter-column-header">
+              <div class="filter-column-title">
+                <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                <span>Disciplines</span>
+              </div>
+              <span class="filter-column-count">6 Curricula</span>
+            </div>
+
+            <div class="filter-chips-row">
+              <button class="filter-chip active" data-subject="all">All Disciplines</button>
+              <button class="filter-chip" data-subject="C Programming">C Programming</button>
+              <button class="filter-chip" data-subject="Data Structures">Data Structures</button>
+              <button class="filter-chip" data-subject="Web Development">Web Development</button>
+              <button class="filter-chip" data-subject="Python Programming">Python</button>
+              <button class="filter-chip" data-subject="Cloud & DevOps">Cloud &amp; DevOps</button>
+              <button class="filter-chip" data-subject="Operating Systems">Operating Systems</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Resources Grid Container -->
-      <div class="resources-grid" id="resources-grid-container">
+      <!-- Resources Display Container -->
+      <div class="resources-display-container" id="resources-grid-container">
         <!-- Populated via app.js -->
       </div>
     </section>
@@ -817,6 +873,46 @@
               <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); text-transform: uppercase;">Delivery Engine</div>
               <div style="font-size: 13px; font-weight: 700; color: var(--text-main); margin-top: 2px;" id="admin-email-engine-status">Nodemailer (Active)</div>
             </div>
+          </div>
+        </div>
+
+        <!-- Live Gmail Delivery Setup Card -->
+        <div class="admin-card" id="gmail-setup-card" style="background: #ffffff; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: 22px 24px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg class="icon" style="color: #ea4335;" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <h3 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0;">Live Gmail Inbox Delivery Setup</h3>
+            </div>
+            <span id="smtp-status-badge" class="status-badge logged">Console &amp; DB Logging Mode</span>
+          </div>
+
+          <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0;">
+            To have registration alerts delivered straight to <strong>admin.studyportal@gmail.com</strong>, provide your Gmail sender address and a 16-character Google App Password below:
+          </p>
+
+          <form id="smtp-setup-form" onsubmit="event.preventDefault(); saveEmailSettings();" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end;">
+            <div>
+              <label class="form-label" style="font-size: 11px; margin-bottom: 4px;" for="smtp-sender-email">Sender Gmail Address</label>
+              <input type="email" id="smtp-sender-email" class="form-input" style="padding: 9px 12px; font-size: 13px;" value="admin.studyportal@gmail.com" required placeholder="admin.studyportal@gmail.com">
+            </div>
+            <div>
+              <label class="form-label" style="font-size: 11px; margin-bottom: 4px;" for="smtp-app-password">Google App Password (16 characters)</label>
+              <input type="password" id="smtp-app-password" class="form-input" style="padding: 9px 12px; font-size: 13px;" placeholder="abcd efgh ijkl mnop" required autocomplete="off">
+            </div>
+            <div>
+              <button type="submit" id="btn-save-smtp" class="btn-primary" style="padding: 9px 18px; font-size: 13px; white-space: nowrap;">
+                Save &amp; Connect Gmail
+              </button>
+            </div>
+          </form>
+
+          <div style="margin-top: 14px; padding: 12px 14px; background: var(--bg-subtle); border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); font-size: 12px; color: var(--text-muted);">
+            <strong style="color: var(--text-main);">📌 How to get your Google App Password (30 seconds):</strong>
+            <ol style="margin: 6px 0 0 18px; padding: 0; line-height: 1.6;">
+              <li>Go to <a href="https://myaccount.google.com/security" target="_blank" style="color: var(--blue-primary); text-decoration: underline;">Google Account Security</a> and make sure <strong>2-Step Verification</strong> is ON.</li>
+              <li>Open <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color: var(--blue-primary); text-decoration: underline;">Google App Passwords</a>.</li>
+              <li>Type App Name: <strong>StudyPortal</strong> and click <strong>Create</strong>. Copy the 16-letter code and paste it above!</li>
+            </ol>
           </div>
         </div>
 

@@ -16,6 +16,7 @@ const PROTECTED_PAGES = ["home", "resources", "ai-search", "upload", "admin"];
 // State
 let allResources = [];
 let activeSubjectFilter = "all";
+let activeMaterialType = "all";
 let currentModalResource = null;
 
 // ================= AUTHENTICATION HELPERS =================
@@ -509,18 +510,128 @@ function togglePasswordVisibility(inputId, btn) {
 
 // ================= STUDY RESOURCES CONTROLLER =================
 
+function isPyqResource(item) {
+  if (!item) return false;
+  return (
+    (item.id && item.id.startsWith("pyq-")) ||
+    (item.level && item.level.toLowerCase().includes("question paper")) ||
+    (item.reading_time && item.reading_time.toLowerCase().includes("exam"))
+  );
+}
+
+function updateMaterialTypeCounts() {
+  const total = allResources.length;
+  const pyqCount = allResources.filter(isPyqResource).length;
+  const notesCount = total - pyqCount;
+
+  const countAll = document.getElementById("count-all-mat");
+  if (countAll) countAll.textContent = total;
+
+  const countPyq = document.getElementById("count-pyq-mat");
+  if (countPyq) countPyq.textContent = pyqCount;
+
+  const countNotes = document.getElementById("count-notes-mat");
+  if (countNotes) countNotes.textContent = notesCount;
+
+  const countBadge = document.getElementById("count-pyq-badge");
+  if (countBadge) countBadge.textContent = `${pyqCount} Papers`;
+}
+
 async function fetchResources() {
   try {
     const res = await fetch("/api/resources");
     if (res.ok) {
       const data = await res.json();
       allResources = data;
+      updateMaterialTypeCounts();
       renderResourcesGrid();
       renderHomeTrending();
     }
   } catch (err) {
     console.warn("Could not fetch resources from backend:", err.message);
   }
+}
+
+function filterByMaterialType(type, btn) {
+  activeMaterialType = type || "all";
+  document.querySelectorAll(".type-pill").forEach((p) => p.classList.remove("active"));
+  if (btn) {
+    btn.classList.add("active");
+  } else {
+    const matching = document.querySelector(`.type-pill[data-type="${type}"]`);
+    if (matching) matching.classList.add("active");
+  }
+  renderResourcesGrid();
+}
+
+function openPreviousYearQuestionPapers(subject = "all") {
+  showPage("resources");
+  filterByMaterialType("pyq");
+  if (subject && subject !== "all") {
+    activeSubjectFilter = subject;
+    document.querySelectorAll(".filter-chip").forEach((chip) => {
+      if (chip.getAttribute("data-subject") === subject) {
+        chip.classList.add("active");
+      } else {
+        chip.classList.remove("active");
+      }
+    });
+  } else {
+    activeSubjectFilter = "all";
+    document.querySelectorAll(".filter-chip").forEach((chip) => {
+      if (chip.getAttribute("data-subject") === "all") {
+        chip.classList.add("active");
+      } else {
+        chip.classList.remove("active");
+      }
+    });
+  }
+  renderResourcesGrid();
+}
+
+function renderResourceCardHtml(item) {
+  const isPyq = isPyqResource(item);
+  const is2024 = item.title.includes("2024");
+  const is2023 = item.title.includes("2023");
+  const yearTag = is2024 ? "2024 SEMESTER EXAM" : is2023 ? "2023 SEMESTER EXAM" : "PREVIOUS YEAR EXAM";
+
+  return `
+    <div class="resource-card ${isPyq ? 'is-pyq' : ''}" data-subject="${escapeHtml(item.subject)}">
+      <div>
+        <div class="card-top-tags">
+          <span class="subject-badge" data-subject="${escapeHtml(item.subject)}">
+            <span class="subject-dot"></span>
+            ${escapeHtml(item.subject)}
+          </span>
+          <span class="reading-pill">
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${escapeHtml(item.reading_time || "5 min read")}
+          </span>
+        </div>
+        ${isPyq ? `<div class="pyq-badge-tag"><svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ${yearTag}</div>` : ''}
+        <h3>${escapeHtml(item.title)}</h3>
+        <p>${escapeHtml(item.summary)}</p>
+      </div>
+
+      <div class="resource-card-actions">
+        ${isPyq ? `
+        <button class="btn-primary btn-sm btn-block btn-pyq-action" onclick="openNotesModal('${item.id}')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>View Question Paper</span>
+        </button>
+        ` : `
+        <button class="btn-primary btn-sm btn-block" onclick="openNotesModal('${item.id}')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span>Read Notes</span>
+        </button>
+        `}
+        <button class="btn-secondary btn-sm" onclick="downloadResourceText('${item.id}')" title="Download plain text file">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Download</span>
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 function renderResourcesGrid() {
@@ -530,64 +641,140 @@ function renderResourcesGrid() {
   const searchQuery = (document.getElementById("resource-search-input")?.value || "").toLowerCase().trim();
 
   const filtered = allResources.filter((item) => {
+    // Subject filter
     const matchesSubject =
       activeSubjectFilter === "all" ||
       item.subject.toLowerCase() === activeSubjectFilter.toLowerCase();
 
+    // Material type filter
+    const isPyq = isPyqResource(item);
+    let matchesType = true;
+    if (activeMaterialType === "pyq") {
+      matchesType = isPyq;
+    } else if (activeMaterialType === "notes") {
+      matchesType = !isPyq;
+    }
+
+    // Search query
     const matchesSearch =
       !searchQuery ||
       item.title.toLowerCase().includes(searchQuery) ||
       item.subject.toLowerCase().includes(searchQuery) ||
       item.summary.toLowerCase().includes(searchQuery) ||
+      (item.level && item.level.toLowerCase().includes(searchQuery)) ||
       (item.content && item.content.toLowerCase().includes(searchQuery));
 
-    return matchesSubject && matchesSearch;
+    return matchesSubject && matchesType && matchesSearch;
   });
 
   if (filtered.length === 0) {
     container.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-dim); background: #ffffff; border: 1px solid var(--border-hairline); border-radius: var(--radius-md);">
-        <h3 style="color: var(--text-main); font-size: 16px; margin-bottom: 4px;">No matching modules</h3>
-        <p style="font-size: 13px;">Adjust search keywords or reset discipline filters.</p>
+      <div style="text-align: center; padding: 48px 20px; color: var(--text-dim); background: #ffffff; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); box-shadow: var(--shadow-xs);">
+        <h3 style="color: var(--text-main); font-size: 16px; margin-bottom: 4px;">No matching materials found</h3>
+        <p style="font-size: 13px;">Adjust search keywords or reset discipline & material type filters.</p>
         <button class="btn-secondary btn-sm" style="margin-top: 14px;" onclick="resetResourceFilters()">Reset Filters</button>
       </div>
     `;
     return;
   }
 
-  container.innerHTML = filtered
-    .map(
-      (item) => `
-    <div class="resource-card" data-subject="${escapeHtml(item.subject)}">
-      <div>
-        <div class="card-top-tags">
-          <span class="subject-badge" data-subject="${escapeHtml(item.subject)}">
-            <span class="subject-dot"></span>
-            ${escapeHtml(item.subject)}
-          </span>
-          <span class="reading-pill">
-            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            ${escapeHtml(item.reading_time || "5 min read")}
-          </span>
+  const pyqList = filtered.filter(isPyqResource);
+  const notesList = filtered.filter((item) => !isPyqResource(item));
+
+  // If user explicitly chose "pyq" only
+  if (activeMaterialType === "pyq") {
+    container.innerHTML = `
+      <div class="resource-single-column-layout">
+        <div class="resource-column-header">
+          <div class="resource-column-heading-box">
+            <div class="column-title-pill pyq-pill">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <h2>Previous Year Questions Papers</h2>
+            </div>
+            <p class="resource-column-sub">Authentic semester university examination papers with solution blueprints</p>
+          </div>
+          <span class="column-count-badge pyq-badge">${pyqList.length} Papers</span>
         </div>
-        <h3>${escapeHtml(item.title)}</h3>
-        <p>${escapeHtml(item.summary)}</p>
+        <div class="column-cards-grid single-col-grid" style="margin-top: 16px;">
+          ${pyqList.map(renderResourceCardHtml).join("")}
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // If user explicitly chose "notes" only
+  if (activeMaterialType === "notes") {
+    container.innerHTML = `
+      <div class="resource-single-column-layout">
+        <div class="resource-column-header">
+          <div class="resource-column-heading-box">
+            <div class="column-title-pill discipline-pill">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              <h2>Disciplines</h2>
+            </div>
+            <p class="resource-column-sub">Curated syllabus lecture notes, revision summaries, and runnable programs</p>
+          </div>
+          <span class="column-count-badge discipline-badge">${notesList.length} Modules</span>
+        </div>
+        <div class="column-cards-grid single-col-grid" style="margin-top: 16px;">
+          ${notesList.map(renderResourceCardHtml).join("")}
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Default / "all": Render in two side-by-side columns:
+  // Column 1: "Previous Year Questions Papers"
+  // Column 2: "Disciplines"
+  container.innerHTML = `
+    <div class="resource-two-columns-layout">
+      <!-- Column 1: Previous Year Questions Papers -->
+      <div class="resource-column resource-column-pyq">
+        <div class="resource-column-header">
+          <div class="resource-column-heading-box">
+            <div class="column-title-pill pyq-pill">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <h2>Previous Year Questions Papers</h2>
+            </div>
+            <p class="resource-column-sub">Authentic semester university examination papers with solution blueprints</p>
+          </div>
+          <span class="column-count-badge pyq-badge">${pyqList.length} Papers</span>
+        </div>
+
+        <div class="column-cards-grid">
+          ${pyqList.length > 0 ? pyqList.map(renderResourceCardHtml).join("") : `
+            <div class="column-empty-state">
+              <p>No question papers found for the selected filter.</p>
+            </div>
+          `}
+        </div>
       </div>
 
-      <div class="resource-card-actions">
-        <button class="btn-primary btn-sm btn-block" onclick="openNotesModal('${item.id}')">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-          <span>Read Notes</span>
-        </button>
-        <button class="btn-secondary btn-sm" onclick="downloadResourceText('${item.id}')" title="Download plain text file">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span>Download</span>
-        </button>
+      <!-- Column 2: Disciplines -->
+      <div class="resource-column resource-column-disciplines">
+        <div class="resource-column-header">
+          <div class="resource-column-heading-box">
+            <div class="column-title-pill discipline-pill">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              <h2>Disciplines</h2>
+            </div>
+            <p class="resource-column-sub">Curated syllabus lecture notes, revision summaries, and runnable programs</p>
+          </div>
+          <span class="column-count-badge discipline-badge">${notesList.length} Modules</span>
+        </div>
+
+        <div class="column-cards-grid">
+          ${notesList.length > 0 ? notesList.map(renderResourceCardHtml).join("") : `
+            <div class="column-empty-state">
+              <p>No discipline notes found for the selected filter.</p>
+            </div>
+          `}
+        </div>
       </div>
     </div>
-  `
-    )
-    .join("");
+  `;
 }
 
 function renderHomeTrending() {
@@ -595,35 +782,7 @@ function renderHomeTrending() {
   if (!container) return;
 
   const featured = allResources.slice(0, 3);
-  container.innerHTML = featured
-    .map(
-      (item) => `
-    <div class="resource-card" data-subject="${escapeHtml(item.subject)}">
-      <div>
-        <div class="card-top-tags">
-          <span class="subject-badge" data-subject="${escapeHtml(item.subject)}">
-            <span class="subject-dot"></span>
-            ${escapeHtml(item.subject)}
-          </span>
-          <span class="reading-pill">
-            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            ${escapeHtml(item.reading_time || "5 min read")}
-          </span>
-        </div>
-        <h3>${escapeHtml(item.title)}</h3>
-        <p>${escapeHtml(item.summary)}</p>
-      </div>
-
-      <div class="resource-card-actions">
-        <button class="btn-primary btn-sm btn-block" onclick="openNotesModal('${item.id}')">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-          <span>Read Notes</span>
-        </button>
-      </div>
-    </div>
-  `
-    )
-    .join("");
+  container.innerHTML = featured.map(renderResourceCardHtml).join("");
 }
 
 // Subject filter buttons
@@ -646,6 +805,11 @@ if (searchInput) {
 
 function resetResourceFilters() {
   activeSubjectFilter = "all";
+  activeMaterialType = "all";
+  document.querySelectorAll(".type-pill").forEach((p) => {
+    if (p.getAttribute("data-type") === "all") p.classList.add("active");
+    else p.classList.remove("active");
+  });
   document.querySelectorAll(".filter-chip").forEach((c) => {
     if (c.getAttribute("data-subject") === "all") c.classList.add("active");
     else c.classList.remove("active");
@@ -662,6 +826,7 @@ function openNotesModal(resourceId) {
   if (!resource) return;
 
   currentModalResource = resource;
+  const isPyq = isPyqResource(resource);
 
   const modal = document.getElementById("notes-modal");
   document.getElementById("modal-title").textContent = resource.title;
@@ -671,7 +836,7 @@ function openNotesModal(resourceId) {
     modalSubject.setAttribute("data-subject", resource.subject);
   }
   document.getElementById("modal-reading-time").textContent = resource.reading_time || "5 min read";
-  document.getElementById("modal-level").textContent = resource.level || "Core Syllabus";
+  document.getElementById("modal-level").textContent = resource.level || (isPyq ? "Previous Year Question Paper" : "Core Syllabus");
   document.getElementById("modal-summary").textContent = resource.summary;
   document.getElementById("modal-content").innerHTML = resource.content || `<p>${resource.summary}</p>`;
 
@@ -706,13 +871,15 @@ document.addEventListener("keydown", (e) => {
 // Modal Actions
 function copyModalNotes() {
   if (!currentModalResource) return;
+  const isPyq = isPyqResource(currentModalResource);
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = currentModalResource.content;
-  const plainText = `${currentModalResource.title}\nSubject: ${currentModalResource.subject}\n\n${tempDiv.textContent || tempDiv.innerText}`;
+  const header = isPyq ? "PREVIOUS YEAR QUESTION PAPER" : "COURSE STUDY NOTES";
+  const plainText = `${header}: ${currentModalResource.title}\nSubject: ${currentModalResource.subject}\nLevel: ${currentModalResource.level}\n\n${tempDiv.textContent || tempDiv.innerText}`;
 
   navigator.clipboard.writeText(plainText).then(
-    () => showToast("Coursework notes copied to clipboard."),
-    () => showToast("Failed to copy notes.")
+    () => showToast(isPyq ? "Question paper copied to clipboard." : "Coursework notes copied to clipboard."),
+    () => showToast("Failed to copy text.")
   );
 }
 
@@ -725,20 +892,23 @@ function downloadResourceText(resourceId) {
   const res = allResources.find((r) => r.id === resourceId);
   if (!res) return;
 
+  const isPyq = isPyqResource(res);
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = res.content;
-  const contentText = `${res.title}\nSubject: ${res.subject}\nLevel: ${res.level}\n=========================================\n\nSummary:\n${res.summary}\n\nDetailed Course Notes:\n${tempDiv.textContent || tempDiv.innerText}\n\n---\nExported from StudyPortal Pro (Academic 2026)`;
+  const headerTitle = isPyq ? "PREVIOUS YEAR QUESTION PAPER" : "COURSE STUDY NOTES";
+  const contentText = `==========================================================\n${headerTitle}\n${res.title}\nSubject: ${res.subject}\nLevel: ${res.level}\nDuration/Reading Time: ${res.reading_time}\n==========================================================\n\nSummary Overview:\n${res.summary}\n\n${isPyq ? 'Examination Structure & Questions:' : 'Detailed Course Notes:'}\n${tempDiv.textContent || tempDiv.innerText}\n\n----------------------------------------------------------\nExported from StudyPortal Pro (Academic 2026 Repository)`;
 
   const blob = new Blob([contentText], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${res.title.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}_notes.txt`;
+  const suffix = isPyq ? "question_paper" : "notes";
+  a.download = `${res.title.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}_${suffix}.txt`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast("File downloaded successfully.");
+  showToast(isPyq ? "Question paper downloaded successfully." : "Course notes downloaded successfully.");
 }
 
 function printModalNotes() {
@@ -1130,10 +1300,20 @@ async function loadAdminNotificationsTable() {
       .then((data) => {
         if (data.success && data.status) {
           if (targetEmailDisplay) targetEmailDisplay.textContent = data.status.adminEmail;
+          const statusBadge = document.getElementById("smtp-status-badge");
           if (engineStatusDisplay) {
             engineStatusDisplay.textContent = data.status.isConfigured
               ? `Live SMTP (${data.status.sender})`
               : "Nodemailer (Active / Logging)";
+          }
+          if (statusBadge) {
+            if (data.status.isConfigured) {
+              statusBadge.className = "status-badge delivered";
+              statusBadge.textContent = `✓ Live Inbox Delivery Active (${data.status.sender})`;
+            } else {
+              statusBadge.className = "status-badge logged";
+              statusBadge.textContent = "Console & DB Logging Mode (Setup Below)";
+            }
           }
         }
       })
@@ -1241,6 +1421,47 @@ async function triggerTestAdminNotification() {
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = originalHtml;
+    }
+  }
+}
+
+async function saveEmailSettings() {
+  const user = document.getElementById("smtp-sender-email").value.trim();
+  const pass = document.getElementById("smtp-app-password").value.trim();
+  const saveBtn = document.getElementById("btn-save-smtp");
+
+  if (!user || !pass) {
+    showToast("Please enter both Gmail address and 16-character App Password.");
+    return;
+  }
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Verifying with Gmail...";
+  }
+
+  try {
+    const res = await fetch("/api/admin/email-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user, pass })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showToast("✓ Live Gmail connected! Real emails will now be sent to admin.studyportal@gmail.com.");
+      document.getElementById("smtp-app-password").value = "";
+      loadAdminNotificationsTable();
+    } else {
+      showToast(data.message || "Failed to connect to Gmail.");
+      alert(data.message || "Gmail verification failed. Ensure 2-Step Verification is ON and a 16-character App Password was used.");
+    }
+  } catch (e) {
+    showToast("Error connecting to server.");
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save & Connect Gmail";
     }
   }
 }

@@ -44,10 +44,16 @@ function formatRegistrationTime(timeInput) {
   };
 }
 
+let customTransporter = null;
+
 /**
  * Creates and returns Nodemailer transporter if SMTP credentials are provided
  */
 function getTransporter() {
+  if (customTransporter) {
+    return customTransporter;
+  }
+
   const user = process.env.SMTP_USER || process.env.EMAIL_USER;
   const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
   const host = process.env.SMTP_HOST;
@@ -70,6 +76,51 @@ function getTransporter() {
   }
 
   return null;
+}
+
+/**
+ * Dynamically configure or update the active mail transporter
+ */
+function setCustomTransporter({ user, pass, host, port, secure }) {
+  if (user && pass) {
+    process.env.SMTP_USER = user;
+    process.env.SMTP_PASS = pass;
+    if (host) process.env.SMTP_HOST = host;
+    if (port) process.env.SMTP_PORT = String(port);
+    if (secure !== undefined) process.env.SMTP_SECURE = String(secure);
+
+    if (!host || host.toLowerCase().includes("gmail")) {
+      customTransporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: { user, pass }
+      });
+    } else {
+      customTransporter = nodemailer.createTransport({
+        host,
+        port: parseInt(port, 10) || 465,
+        secure: secure === true || secure === "true" || port === 465,
+        auth: { user, pass }
+      });
+    }
+    return customTransporter;
+  }
+  return null;
+}
+
+/**
+ * Test & verify connectivity with the configured mail server
+ */
+async function verifyTransporterConnection() {
+  const transporter = getTransporter();
+  if (!transporter) {
+    return { ok: false, error: "No SMTP credentials provided. Please supply Gmail address and App Password." };
+  }
+  try {
+    await transporter.verify();
+    return { ok: true, message: "SMTP connection verified successfully!" };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 }
 
 /**
@@ -424,5 +475,7 @@ module.exports = {
   formatRegistrationTime,
   getEmailConfigStatus,
   sendAdminRegistrationNotification,
-  sendTestNotification
+  sendTestNotification,
+  setCustomTransporter,
+  verifyTransporterConnection
 };

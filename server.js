@@ -9,8 +9,11 @@ const {
   ADMIN_EMAIL,
   sendAdminRegistrationNotification,
   sendTestNotification,
-  getEmailConfigStatus
+  getEmailConfigStatus,
+  setCustomTransporter,
+  verifyTransporterConnection
 } = require("./mailer");
+const { QUESTION_PAPERS } = require("./questionPapersData");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -304,20 +307,16 @@ print(word_lengths)</code></pre>
   }
 ];
 
-// Seed DB with default resources if table is empty
+// Seed DB with default resources and question papers
 async function seedDefaultResourcesIfNeeded() {
   try {
-    const existing = await sql`SELECT COUNT(*)::int AS count FROM resources`;
-    if (existing && existing[0] && existing[0].count === 0) {
-      console.log("Seeding initial resources into Neon database...");
-      for (const res of DEFAULT_STUDY_RESOURCES) {
-        await sql`
-          INSERT INTO resources (id, title, subject, reading_time, level, summary, content, file_url, uploader_name)
-          VALUES (${res.id}, ${res.title}, ${res.subject}, ${res.reading_time}, ${res.level}, ${res.summary}, ${res.content}, ${res.file_url}, ${res.uploader_name})
-          ON CONFLICT (id) DO NOTHING
-        `;
-      }
-      console.log("✓ Initial study resources seeded successfully.");
+    const allSeeds = [...DEFAULT_STUDY_RESOURCES, ...QUESTION_PAPERS];
+    for (const res of allSeeds) {
+      await sql`
+        INSERT INTO resources (id, title, subject, reading_time, level, summary, content, file_url, uploader_name)
+        VALUES (${res.id}, ${res.title}, ${res.subject}, ${res.reading_time}, ${res.level}, ${res.summary}, ${res.content}, ${res.file_url}, ${res.uploader_name})
+        ON CONFLICT (id) DO NOTHING
+      `;
     }
   } catch (e) {
     console.warn("Notice: Resource seed check:", e.message);
@@ -755,6 +754,75 @@ app.get("/api/admin/email-status", requireAdmin, (req, res) => {
     res.json({ success: true, status });
   } catch (err) {
     res.status(500).json({ success: false, message: "Could not retrieve email configuration status." });
+  }
+});
+
+// Update email notification credentials & test connection (Admin only)
+app.post("/api/admin/email-config", requireAdmin, async (req, res) => {
+  const { user, pass, host, port, secure } = req.body;
+
+  if (!user || !pass) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide both sender email address and Google App Password."
+    });
+  }
+
+  try {
+    const cleanUser = String(user).trim();
+    const cleanPass = String(pass).trim().replace(/\s+/g, ""); // strip any pasted spaces from 16-char app password
+    const cleanHost = host ? String(host).trim() : "smtp.gmail.com";
+    const cleanPort = port ? parseInt(port, 10) : 465;
+
+    setCustomTransporter({
+      user: cleanUser,
+      pass: cleanPass,
+      host: cleanHost,
+      port: cleanPort,
+      secure: secure !== undefined ? secure : true
+    });
+
+    const verifyResult = await verifyTransporterConnection();
+
+    // Persist to .env file so it survives server restarts
+    try {
+      const envPath = path.join(__dirname, ".env");
+      let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
+
+      function setOrAppendEnv(k, v) {
+        const regex = new RegExp(`^${k}=.*$`, "m");
+        if (regex.test(envContent)) {
+          envContent = envContent.replace(regex, `${k}=${v}`);
+        } else {
+          envContent += `\n${k}=${v}`;
+        }
+      }
+
+      setOrAppendEnv("SMTP_USER", cleanUser);
+      setOrAppendEnv("SMTP_PASS", cleanPass);
+      setOrAppendEnv("SMTP_HOST", cleanHost);
+      setOrAppendEnv("SMTP_PORT", cleanPort);
+      setOrAppendEnv("SMTP_SECURE", "true");
+
+      fs.writeFileSync(envPath, envContent, "utf8");
+    } catch (fsErr) {
+      console.warn("Notice: Could not write credentials to .env:", fsErr.message);
+    }
+
+    if (!verifyResult.ok) {
+      return res.status(400).json({
+        success: false,
+        message: `Credentials saved, but verification failed: ${verifyResult.error}. Please ensure 2-Step Verification is active and a valid 16-character App Password is used.`
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "✓ SMTP connection verified! Live email alerts will now arrive directly in admin.studyportal@gmail.com.",
+      status: getEmailConfigStatus()
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message || "Failed to update email settings." });
   }
 });
 

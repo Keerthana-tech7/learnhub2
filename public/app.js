@@ -148,6 +148,13 @@ function updateNavUI() {
       navBackBtn.style.display = "none";
     }
   }
+
+  // Update visibility of Mobile Bottom Nav Bar
+  const mobileBottomNav = document.getElementById("mobile-bottom-nav");
+  if (mobileBottomNav) {
+    const isAuthPage = currentPageId === "login" || currentPageId === "register";
+    mobileBottomNav.style.display = (loggedIn && !isAuthPage) ? "flex" : "none";
+  }
 }
 
 // Navigation History Stack
@@ -211,12 +218,19 @@ function showPage(pageId, pushToHistory = true) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // Update active navigation link
+  // Update active navigation link on desktop and mobile
   document.querySelectorAll(".nav-link").forEach((link) => {
     link.classList.remove("active");
     const href = link.getAttribute("href") || "";
     if (href.replace("#", "") === pageId) {
       link.classList.add("active");
+    }
+  });
+
+  document.querySelectorAll(".mobile-nav-btn").forEach((btn) => {
+    btn.classList.remove("active");
+    if (btn.id === `mob-nav-${pageId}`) {
+      btn.classList.add("active");
     }
   });
 

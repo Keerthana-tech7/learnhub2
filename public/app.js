@@ -549,6 +549,16 @@ function updateMaterialTypeCounts() {
 
   const countBadge = document.getElementById("count-pyq-badge");
   if (countBadge) countBadge.textContent = `${pyqCount} Papers`;
+
+  // Sync mobile quick section switcher counts
+  const mobCountAll = document.getElementById("mob-count-all");
+  if (mobCountAll) mobCountAll.textContent = total;
+
+  const mobCountPyq = document.getElementById("mob-count-pyq");
+  if (mobCountPyq) mobCountPyq.textContent = pyqCount;
+
+  const mobCountNotes = document.getElementById("mob-count-notes");
+  if (mobCountNotes) mobCountNotes.textContent = notesCount;
 }
 
 async function fetchResources() {
@@ -569,12 +579,22 @@ async function fetchResources() {
 function filterByMaterialType(type, btn) {
   activeMaterialType = type || "all";
   document.querySelectorAll(".type-pill").forEach((p) => p.classList.remove("active"));
-  if (btn) {
+  if (btn && btn.classList.contains("type-pill")) {
     btn.classList.add("active");
   } else {
     const matching = document.querySelector(`.type-pill[data-type="${type}"]`);
     if (matching) matching.classList.add("active");
   }
+
+  // Synchronize mobile section switcher active state
+  document.querySelectorAll(".mob-switch-btn").forEach((b) => {
+    if (b.getAttribute("data-type") === type) {
+      b.classList.add("active");
+    } else {
+      b.classList.remove("active");
+    }
+  });
+
   renderResourcesGrid();
 }
 
@@ -823,6 +843,10 @@ function resetResourceFilters() {
   document.querySelectorAll(".type-pill").forEach((p) => {
     if (p.getAttribute("data-type") === "all") p.classList.add("active");
     else p.classList.remove("active");
+  });
+  document.querySelectorAll(".mob-switch-btn").forEach((b) => {
+    if (b.getAttribute("data-type") === "all") b.classList.add("active");
+    else b.classList.remove("active");
   });
   document.querySelectorAll(".filter-chip").forEach((c) => {
     if (c.getAttribute("data-subject") === "all") c.classList.add("active");

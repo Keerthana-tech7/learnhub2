@@ -541,7 +541,7 @@
           <span class="search-icon-inside">
             <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </span>
-          <input type="text" id="resource-search-input" placeholder="Search by topic, paper title, or exam concept (e.g. 2024 exam, pointers, AVL rotations, SQL)...">
+          <input type="text" id="resource-search-input" placeholder="Search topics, question papers, or concepts...">
         </div>
 
         <!-- Two Columns: Previous Year Question Papers & Disciplines -->
@@ -593,6 +593,21 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Mobile Quick Section Switcher (One-touch tab switching on small screens) -->
+      <div class="mobile-section-switcher" id="mobile-section-switcher">
+        <button class="mob-switch-btn active" data-type="all" onclick="filterByMaterialType('all', this)">
+          <span>All (<span id="mob-count-all">18</span>)</span>
+        </button>
+        <button class="mob-switch-btn" data-type="pyq" onclick="filterByMaterialType('pyq', this)">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <span>PYQ Papers (<span id="mob-count-pyq">12</span>)</span>
+        </button>
+        <button class="mob-switch-btn" data-type="notes" onclick="filterByMaterialType('notes', this)">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          <span>Disciplines (<span id="mob-count-notes">6</span>)</span>
+        </button>
       </div>
 
       <!-- Resources Display Container -->

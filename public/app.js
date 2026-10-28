@@ -1066,19 +1066,38 @@ function handleAiSearchSubmit(e) {
 
 let selectedUploadFile = null;
 
-// Initialize Upload Page with verified session details and populated resources dropdown
+// Initialize Upload Page with autofilled session details and populated resources dropdown
 async function initUploadPage() {
-  const user = getCurrentUser();
+  let user = getCurrentUser();
+  if (!user) {
+    try {
+      const sessRes = await fetch("/api/session");
+      if (sessRes.ok) {
+        const sessData = await sessRes.json();
+        if (sessData.loggedIn && sessData.user) {
+          user = sessData.user;
+          setCurrentUser(user);
+        }
+      }
+    } catch (e) {
+      // Ignore background session fetch errors
+    }
+  }
+
   const nameInput = document.getElementById("upload-contributor-name");
   const emailInput = document.getElementById("upload-contributor-email");
   const nameDisplay = document.getElementById("upload-user-name-display");
   const emailDisplay = document.getElementById("upload-user-email-display");
+  const avatarEl = document.getElementById("upload-user-avatar");
 
   if (user) {
     if (nameInput) nameInput.value = user.name || "";
     if (emailInput) emailInput.value = user.email || "";
     if (nameDisplay) nameDisplay.textContent = user.name || "Registered Student";
     if (emailDisplay) emailDisplay.textContent = user.email || "";
+    if (avatarEl) {
+      avatarEl.textContent = (user.name ? user.name[0] : "U").toUpperCase();
+    }
   }
 
   const subjectVal = document.getElementById("upload-subject")?.value || "C Programming";
@@ -1269,10 +1288,12 @@ async function handleUploadSubmit(e) {
     formData.append("contributionContent", content);
     formData.append("content", content);
 
-    if (user) {
-      if (user.name) formData.append("contributorName", user.name);
-      if (user.email) formData.append("contributorEmail", user.email);
-    }
+    // Autofill contributor name & email from authenticated session user (never ask student to fill)
+    const contributorName = (user && user.name) || document.getElementById("upload-contributor-name")?.value || "Student Contributor";
+    const contributorEmail = (user && user.email) || document.getElementById("upload-contributor-email")?.value || "";
+
+    formData.append("contributorName", contributorName);
+    formData.append("contributorEmail", contributorEmail);
     if (selectedUploadFile) {
       formData.append("resourceFile", selectedUploadFile);
     }

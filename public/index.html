@@ -722,33 +722,34 @@
           <div class="upload-card">
             <div id="upload-feedback" class="auth-message"></div>
 
-            <!-- Verified Contributor Identity Banner (Requirement 1 & 6) -->
-            <div class="contributor-verified-banner" id="upload-user-banner">
-              <span class="contributor-verified-badge">
-                <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><polyline points="20 6 9 17 4 12"/></svg>
-                Verified Contributor
-              </span>
-              <div style="font-size: 13px; color: #166534;">
-                Submitting as: <strong id="upload-user-name-display">Registered Student</strong> (<span id="upload-user-email-display">student@university.edu</span>)
+            <!-- Auto-filled Contributor Profile Card (Name & Email autofilled automatically) -->
+            <div class="contributor-verified-banner" id="upload-user-banner" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 22px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div id="upload-user-avatar" style="width: 36px; height: 36px; border-radius: 50%; background: #059669; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0;">
+                    U
+                  </div>
+                  <div>
+                    <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #047857; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
+                      <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><polyline points="20 6 9 17 4 12"/></svg>
+                      Autofilled Contributor Profile
+                    </div>
+                    <div style="font-size: 14px; font-weight: 700; color: #064e3b; margin-top: 1px;">
+                      <span id="upload-user-name-display">Registered Student</span>
+                      <span style="font-weight: 400; font-size: 12.5px; color: #047857; margin-left: 6px;">(<span id="upload-user-email-display">student@university.edu</span>)</span>
+                    </div>
+                  </div>
+                </div>
+                <span class="contributor-verified-badge" style="background: #059669; color: #ffffff; font-size: 11px; padding: 3px 10px; border-radius: 9999px; font-weight: 700;">
+                  ✓ Auto-Verified
+                </span>
               </div>
             </div>
 
             <form id="upload-form" onsubmit="handleUploadSubmit(event)">
-              <!-- Contributor Name & Email (Readonly verified session inputs - Requirement 1 & 6) -->
-              <div class="form-row-two-col">
-                <div class="form-group">
-                  <label class="form-label" for="upload-contributor-name">Contributor Full Name</label>
-                  <div class="input-wrapper">
-                    <input type="text" id="upload-contributor-name" class="form-input" placeholder="Your Full Name" required readonly style="background: #f8fafc; color: var(--text-muted); cursor: not-allowed;">
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="upload-contributor-email">Contributor Email Address</label>
-                  <div class="input-wrapper">
-                    <input type="email" id="upload-contributor-email" class="form-input" placeholder="student@university.edu" required readonly style="background: #f8fafc; color: var(--text-muted); cursor: not-allowed;">
-                  </div>
-                </div>
-              </div>
+              <!-- Hidden inputs: Automatically populated from session (user is never asked to fill) -->
+              <input type="hidden" id="upload-contributor-name" name="contributorName">
+              <input type="hidden" id="upload-contributor-email" name="contributorEmail">
 
               <!-- Resource Title & Category (Requirement 1) -->
               <div class="form-group">

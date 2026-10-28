@@ -1548,9 +1548,12 @@ function getAdminAuthHeaders() {
   const headers = {
     "Accept": "application/json"
   };
-  if (user && user.email) {
-    headers["x-admin-email"] = user.email;
-    if (user.role) headers["x-admin-role"] = user.role;
+  const email = (user && user.email) || (user && user.role === "admin" ? "admin.studyportal@gmail.com" : "");
+  if (email) {
+    headers["x-admin-email"] = email;
+  }
+  if (user && user.role) {
+    headers["x-admin-role"] = user.role;
   }
   return headers;
 }

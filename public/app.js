@@ -37,12 +37,14 @@ function markUserAsRegistered(email) {
 }
 
 function isUserLoggedIn() {
-  return sessionStorage.getItem(KEY_LOGGED_IN) === "true";
+  return sessionStorage.getItem(KEY_LOGGED_IN) === "true" || localStorage.getItem(KEY_LOGGED_IN) === "true";
 }
 
 function setLoggedInUser(user) {
   sessionStorage.setItem(KEY_LOGGED_IN, "true");
   sessionStorage.setItem(KEY_USER_DATA, JSON.stringify(user));
+  localStorage.setItem(KEY_LOGGED_IN, "true");
+  localStorage.setItem(KEY_USER_DATA, JSON.stringify(user));
   const isMasterAdmin = user && user.email && (user.email.toLowerCase() === "admin.studyportal@gmail.com" || user.email.toLowerCase() === "admin@studyportal.edu");
   if (user && user.email && user.role !== "admin" && !isMasterAdmin) {
     markUserAsRegistered(user.email);
@@ -55,7 +57,7 @@ function setLoggedInUser(user) {
 
 function getCurrentUser() {
   try {
-    const raw = sessionStorage.getItem(KEY_USER_DATA);
+    const raw = sessionStorage.getItem(KEY_USER_DATA) || localStorage.getItem(KEY_USER_DATA);
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
     return null;
@@ -65,6 +67,8 @@ function getCurrentUser() {
 function clearSessionState() {
   sessionStorage.removeItem(KEY_LOGGED_IN);
   sessionStorage.removeItem(KEY_USER_DATA);
+  localStorage.removeItem(KEY_LOGGED_IN);
+  localStorage.removeItem(KEY_USER_DATA);
   updateNavUI();
 }
 

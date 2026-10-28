@@ -4,6 +4,14 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const bcrypt = require("bcryptjs");
+
+// Prevent server exit from background DB socket reconnects/ECONNRESET
+process.on("unhandledRejection", (reason) => {
+  console.warn("Resilience Notice: Handled background rejection:", (reason && reason.message) || reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Resilience Warning: Handled background exception:", err.message);
+});
 const sql = require("./database");
 const {
   ADMIN_EMAIL,

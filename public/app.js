@@ -15,6 +15,7 @@ const PROTECTED_PAGES = ["home", "resources", "ai-search", "upload", "admin"];
 
 // State
 let allResources = [];
+let adminResourcesList = [];
 let activeSubjectFilter = "all";
 let activeMaterialType = "all";
 let currentModalResource = null;
@@ -860,7 +861,7 @@ function resetResourceFilters() {
 // ================= NOTES READER MODAL =================
 
 function openNotesModal(resourceId) {
-  const resource = allResources.find((r) => r.id === resourceId);
+  const resource = allResources.find((r) => r.id === resourceId) || adminResourcesList.find((r) => r.id === resourceId);
   if (!resource) return;
 
   currentModalResource = resource;
@@ -1111,14 +1112,19 @@ async function handleUploadSubmit(e) {
     return;
   }
 
-  showAuthMessage("upload-feedback", "Publishing document to Neon database...", "info");
+  showAuthMessage("upload-feedback", "Submitting contribution for administrator approval...", "info");
   if (submitBtn) submitBtn.disabled = true;
 
   try {
+    const user = getCurrentUser();
     const formData = new FormData();
     formData.append("title", title);
     formData.append("subject", subject);
     formData.append("description", description);
+    if (user) {
+      if (user.name) formData.append("contributorName", user.name);
+      if (user.email) formData.append("contributorEmail", user.email);
+    }
     if (selectedUploadFile) {
       formData.append("resourceFile", selectedUploadFile);
     }
@@ -1131,8 +1137,17 @@ async function handleUploadSubmit(e) {
     const data = await response.json();
 
     if (response.ok && data.success) {
-      showAuthMessage("upload-feedback", "Document published to repository successfully.", "success");
-      showToast("Document published to coursework repository.");
+      if (data.pendingApproval) {
+        showAuthMessage(
+          "upload-feedback",
+          "✓ Thank you! Your contribution has been submitted for administrator review and will appear on the portal once approved. An alert has been dispatched to the admin.",
+          "success"
+        );
+        showToast("Contribution submitted for admin approval!");
+      } else {
+        showAuthMessage("upload-feedback", "Study material published to repository successfully.", "success");
+        showToast("Document published to coursework repository.");
+      }
 
       fetchResources();
       fetchLiveStats();
@@ -1147,8 +1162,10 @@ async function handleUploadSubmit(e) {
 
       setTimeout(() => {
         showAuthMessage("upload-feedback", "", "");
-        showPage("resources");
-      }, 1000);
+        if (!data.pendingApproval) {
+          showPage("resources");
+        }
+      }, 4000);
     } else {
       showAuthMessage("upload-feedback", data.message || "Upload failed.", "error");
     }
@@ -1272,32 +1289,185 @@ async function deleteUserAccount(userId, userEmail) {
 async function loadAdminResourcesTable() {
   const tbody = document.getElementById("admin-resources-table-body");
   const totalBadge = document.getElementById("admin-res-total-badge");
+  const pendingCounter = document.getElementById("admin-pending-counter");
+  const pendingCard = document.getElementById("admin-pending-card");
+  const pendingItemsList = document.getElementById("admin-pending-items-list");
+  const pendingTextBadge = document.getElementById("admin-pending-text-badge");
   if (!tbody) return;
 
-  if (totalBadge) totalBadge.textContent = `${allResources.length} Modules`;
+  try {
+    const res = await fetch("/api/admin/resources");
+    const data = await res.json();
 
-  tbody.innerHTML = allResources
-    .map((r) => {
-      return `
-        <tr>
-          <td style="font-weight: 600; color: var(--text-main);">${escapeHtml(r.title)}</td>
-          <td><span class="subject-badge">${escapeHtml(r.subject)}</span></td>
-          <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">${escapeHtml(r.level || "Undergraduate")}</td>
-          <td style="font-size: 13px;">${escapeHtml(r.uploader_name || "Faculty")}</td>
-          <td style="text-align: right;">
-            <div class="admin-table-actions" style="justify-content: flex-end;">
-              <button class="btn-secondary btn-sm" onclick="openNotesModal('${r.id}')">
-                View
-              </button>
-              <button class="btn-danger btn-sm" onclick="deleteResourceItem('${r.id}', '${escapeHtml(r.title)}')">
-                Delete
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
+    if (res.ok && data.resources) {
+      adminResourcesList = data.resources;
+      const pendingList = adminResourcesList.filter((r) => r.status === "pending");
+
+      if (totalBadge) totalBadge.textContent = `${adminResourcesList.length} Modules`;
+
+      // Pending counter badge in tab button
+      if (pendingCounter) {
+        if (pendingList.length > 0) {
+          pendingCounter.textContent = `${pendingList.length} Pending`;
+          pendingCounter.style.display = "inline-block";
+        } else {
+          pendingCounter.style.display = "none";
+        }
+      }
+
+      // Pending review banner card at top of tab
+      if (pendingCard && pendingItemsList) {
+        if (pendingList.length > 0) {
+          pendingCard.style.display = "block";
+          if (pendingTextBadge) pendingTextBadge.textContent = `${pendingList.length} Pending Submissions`;
+
+          pendingItemsList.innerHTML = pendingList
+            .map((r) => {
+              const createdStr = r.created_at ? new Date(r.created_at).toLocaleString() : "Just now";
+              return `
+                <div style="background: #ffffff; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 260px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
+                      <span class="subject-badge" style="font-size: 11px;">${escapeHtml(r.subject)}</span>
+                      <strong style="color: var(--text-main); font-size: 15px;">${escapeHtml(r.title)}</strong>
+                    </div>
+                    <div style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 6px;">
+                      Contributed by <strong style="color: var(--text-main);">${escapeHtml(r.uploader_name || "Student")}</strong> (${escapeHtml(r.uploader_email || "no-email")}) &bull; <span style="font-family: var(--font-mono); font-size: 11px;">${createdStr}</span>
+                    </div>
+                    <p style="font-size: 13px; color: #334155; margin: 0; line-height: 1.45; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border-hairline);">
+                      ${escapeHtml(r.summary || "")}
+                    </p>
+                    ${r.file_url ? `<div style="margin-top: 8px;"><a href="${r.file_url}" target="_blank" style="font-size: 12px; color: var(--blue-primary); text-decoration: underline; font-weight: 600;">📎 Download Attached Contribution File</a></div>` : ""}
+                  </div>
+                  <div style="display: flex; gap: 8px; align-items: center; white-space: nowrap;">
+                    <button class="btn-secondary btn-sm" onclick="openNotesModal('${r.id}')" title="Preview study material">
+                      View
+                    </button>
+                    <button class="btn-success btn-sm" onclick="approveResourceItem('${r.id}', '${escapeHtml(r.title)}')" style="background: #059669; color: #fff; padding: 7px 15px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer;" title="Approve and publish live to all students">
+                      ✓ Approve &amp; Publish
+                    </button>
+                    <button class="btn-danger btn-sm" onclick="rejectResourceItem('${r.id}', '${escapeHtml(r.title)}')" style="padding: 7px 14px;" title="Decline this contribution">
+                      ✕ Reject
+                    </button>
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+        } else {
+          pendingCard.style.display = "none";
+        }
+      }
+
+      if (adminResourcesList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 24px;">No coursework documents found in repository.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = adminResourcesList
+        .map((r) => {
+          const statusVal = r.status || "approved";
+          const isPending = statusVal === "pending";
+          const isRejected = statusVal === "rejected";
+          const statusBadge = isPending
+            ? `<span class="status-badge pending">⏳ Pending Approval</span>`
+            : isRejected
+            ? `<span class="status-badge failed">✕ Rejected</span>`
+            : `<span class="status-badge delivered">✓ Approved</span>`;
+
+          const createdDate = r.created_at ? new Date(r.created_at).toLocaleDateString() : "-";
+
+          return `
+            <tr style="${isPending ? "background: #fffbeb;" : ""}">
+              <td style="font-weight: 600; color: var(--text-main);">
+                <div>${escapeHtml(r.title)}</div>
+                ${r.file_url ? `<a href="${r.file_url}" target="_blank" style="font-size: 11px; color: var(--blue-primary); text-decoration: underline;">Attachment Link</a>` : ""}
+              </td>
+              <td><span class="subject-badge">${escapeHtml(r.subject)}</span></td>
+              <td style="font-size: 13px;">
+                <div><strong>${escapeHtml(r.uploader_name || "Faculty")}</strong></div>
+                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">${escapeHtml(r.uploader_email || "")}</div>
+              </td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">${createdDate}</td>
+              <td>${statusBadge}</td>
+              <td style="text-align: right;">
+                <div class="admin-table-actions" style="justify-content: flex-end;">
+                  ${
+                    isPending
+                      ? `
+                      <button class="btn-success btn-sm" onclick="approveResourceItem('${r.id}', '${escapeHtml(r.title)}')" style="background: #059669; color: #fff; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer;" title="Approve">
+                        Approve
+                      </button>
+                      <button class="btn-danger btn-sm" onclick="rejectResourceItem('${r.id}', '${escapeHtml(r.title)}')" style="padding: 4px 10px;" title="Reject">
+                        Reject
+                      </button>
+                      `
+                      : isRejected
+                      ? `
+                      <button class="btn-success btn-sm" onclick="approveResourceItem('${r.id}', '${escapeHtml(r.title)}')" style="background: #059669; color: #fff; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer;" title="Re-approve">
+                        Re-Approve
+                      </button>
+                      `
+                      : ""
+                  }
+                  <button class="btn-secondary btn-sm" onclick="openNotesModal('${r.id}')">
+                    View
+                  </button>
+                  <button class="btn-danger btn-sm" onclick="deleteResourceItem('${r.id}', '${escapeHtml(r.title)}')">
+                    Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    } else {
+      tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">${data.message || "Failed to load directory."}</td></tr>`;
+    }
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">Failed to connect to admin endpoint.</td></tr>`;
+  }
+}
+
+async function approveResourceItem(resourceId, title) {
+  try {
+    const res = await fetch(`/api/admin/resources/${resourceId}/approve`, {
+      method: "POST"
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(`✓ "${title}" approved & published to portal!`);
+      loadAdminResourcesTable();
+      fetchResources();
+      fetchLiveStats();
+    } else {
+      showToast(data.message || "Could not approve resource.");
+    }
+  } catch (e) {
+    showToast("Error connecting to server.");
+  }
+}
+
+async function rejectResourceItem(resourceId, title) {
+  if (!confirm(`Reject contribution "${title}"? It will not be published to students.`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/resources/${resourceId}/reject`, {
+      method: "POST"
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(`Contribution "${title}" was rejected.`);
+      loadAdminResourcesTable();
+      fetchResources();
+      fetchLiveStats();
+    } else {
+      showToast(data.message || "Could not reject resource.");
+    }
+  } catch (e) {
+    showToast("Error connecting to server.");
+  }
 }
 
 async function deleteResourceItem(resourceId, title) {
@@ -1328,6 +1498,7 @@ async function loadAdminNotificationsTable() {
   const counterBadge = document.getElementById("admin-notif-counter");
   const telemetryBadge = document.getElementById("admin-notif-stat-count");
   const targetEmailDisplay = document.getElementById("admin-target-email-display");
+  const targetEmailInline = document.getElementById("admin-target-email-inline");
   const engineStatusDisplay = document.getElementById("admin-email-engine-status");
   if (!tbody) return;
 
@@ -1338,6 +1509,7 @@ async function loadAdminNotificationsTable() {
       .then((data) => {
         if (data.success && data.status) {
           if (targetEmailDisplay) targetEmailDisplay.textContent = data.status.adminEmail;
+          if (targetEmailInline) targetEmailInline.textContent = data.status.adminEmail;
           const statusBadge = document.getElementById("smtp-status-badge");
           if (engineStatusDisplay) {
             engineStatusDisplay.textContent = data.status.isConfigured
@@ -1350,7 +1522,7 @@ async function loadAdminNotificationsTable() {
               statusBadge.textContent = `✓ Live Inbox Delivery Active (${data.status.sender})`;
             } else {
               statusBadge.className = "status-badge logged";
-              statusBadge.textContent = "Console & DB Logging Mode (Setup Below)";
+              statusBadge.textContent = "Console & DB Logging Mode";
             }
           }
         }
@@ -1370,8 +1542,8 @@ async function loadAdminNotificationsTable() {
       if (count === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="6" style="padding: 24px; text-align: center; color: var(--text-dim);">
-              No registration alerts dispatched yet. New notifications will appear automatically here as users register.
+            <td colspan="7" style="padding: 24px; text-align: center; color: var(--text-dim);">
+              No alerts dispatched yet. New notifications will appear automatically here as users register or contribute.
             </td>
           </tr>
         `;
@@ -1397,12 +1569,37 @@ async function loadAdminNotificationsTable() {
           const badgeClass = isDelivered ? "delivered" : (isFailed ? "failed" : "logged");
           const badgeText = isDelivered ? "DELIVERED TO INBOX" : (isFailed ? "FAILED" : "DISPATCHED & LOGGED");
 
+          let detailsObj = {};
+          try {
+            detailsObj = typeof n.details === "string" ? JSON.parse(n.details) : (n.details || {});
+          } catch (e) {}
+
+          const isContribution = n.type === "resource_contributed";
+          const typeBadge = isContribution
+            ? `<span class="status-badge pending" style="font-size: 9.5px; padding: 2px 7px;">📝 CONTRIBUTION</span>`
+            : `<span class="status-badge logged" style="font-size: 9.5px; padding: 2px 7px;">👤 REGISTRATION</span>`;
+
+          const eventDetails = isContribution
+            ? `
+              <div style="font-weight: 700; color: var(--text-main); font-size: 13px;">${escapeHtml(detailsObj.title || "Study Material")}</div>
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Subject: <span class="subject-badge" style="font-size: 10px; padding: 1px 6px;">${escapeHtml(detailsObj.subject || "General")}</span> ${detailsObj.fileUrl ? "• 📎 Attached File" : ""}</div>
+            `
+            : `
+              <div style="font-weight: 700; color: var(--text-main); font-size: 13px;">New User Registration</div>
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Role: <span class="role-badge ${n.user_role === 'admin' ? 'admin' : 'user'}" style="font-size: 9px;">${escapeHtml(n.user_role || 'user')}</span></div>
+            `;
+
           return `
-            <tr>
+            <tr style="${isContribution ? "background: #fafaf9;" : ""}">
               <td style="font-family: var(--font-mono); color: var(--text-dim);">${n.id}</td>
               <td>
-                <strong style="color: var(--text-main);">${escapeHtml(n.user_name || "New Student")}</strong>
-                <span class="role-badge ${n.user_role === 'admin' ? 'admin' : 'user'}" style="margin-left: 6px; font-size: 9px;">${escapeHtml(n.user_role || 'user')}</span>
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+                  ${typeBadge}
+                </div>
+                ${eventDetails}
+              </td>
+              <td>
+                <strong style="color: var(--text-main); font-size: 13.5px;">${escapeHtml(n.user_name || "Student")}</strong>
               </td>
               <td>
                 <span style="font-family: var(--font-mono); font-size: 12.5px; color: var(--text-main);">${escapeHtml(n.user_email)}</span>
@@ -1422,10 +1619,10 @@ async function loadAdminNotificationsTable() {
         })
         .join("");
     } else {
-      tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">${data.message || "Failed to load notifications."}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">${data.message || "Failed to load notifications."}</td></tr>`;
     }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">Failed to connect to notifications service.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">Failed to connect to notifications service.</td></tr>`;
   }
 }
 
@@ -1448,10 +1645,44 @@ async function triggerTestAdminNotification() {
     const data = await res.json();
 
     if (res.ok && data.success) {
-      showToast(data.message || "Test alert notification dispatched to admin mailbox!");
+      showToast(data.message || "Test registration alert dispatched to admin mailbox!");
       loadAdminNotificationsTable();
     } else {
       showToast(data.message || "Failed to dispatch test alert.");
+    }
+  } catch (e) {
+    showToast("Error connecting to notification endpoint.");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+
+async function triggerTestContributionNotification() {
+  const btn = document.getElementById("btn-test-contrib-email");
+  const originalHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `
+      <span class="btn-spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid #555; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px;"></span>
+      <span>Dispatching Alert...</span>
+    `;
+  }
+
+  try {
+    const res = await fetch("/api/admin/notifications/test-contribution", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showToast(data.message || "Test contribution alert dispatched to admin mailbox!");
+      loadAdminNotificationsTable();
+    } else {
+      showToast(data.message || "Failed to dispatch test contribution alert.");
     }
   } catch (e) {
     showToast("Error connecting to notification endpoint.");

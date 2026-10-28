@@ -8,6 +8,7 @@ const sql = require("./database");
 const {
   ADMIN_EMAIL,
   sendAdminRegistrationNotification,
+  sendAdminContributionNotification,
   sendTestNotification,
   getEmailConfigStatus,
   setCustomTransporter,
@@ -534,12 +535,13 @@ app.post("/api/logout", (req, res) => {
   });
 });
 
-// Get all study resources
+// Get all approved study resources (Student & Public view)
 app.get("/api/resources", async (req, res) => {
   try {
     const rows = await sql`
-      SELECT id, title, subject, reading_time, level, summary, content, file_url, uploader_name, created_at
+      SELECT id, title, subject, reading_time, level, summary, content, file_url, uploader_name, uploader_email, COALESCE(status, 'approved') AS status, created_at
       FROM resources
+      WHERE status = 'approved' OR status IS NULL
       ORDER BY created_at DESC
     `;
     if (rows && rows.length > 0) {
@@ -553,25 +555,33 @@ app.get("/api/resources", async (req, res) => {
   }
 });
 
-// File upload / user contribution
+// File upload / user contribution (Requires Admin Approval before publishing)
 app.post("/api/upload", upload.single("resourceFile"), async (req, res) => {
   const { title, subject, description } = req.body;
   const cleanTitle = (title || "Community Study Note").trim();
   const cleanSubject = (subject || "General").trim();
   const cleanDesc = (description || "Shared study material.").trim();
 
-  const user = req.session && req.session.user ? req.session.user.name : "Student Contributor";
+  const contributorName = (req.session && req.session.user && req.session.user.name) || req.body.contributorName || "Student Contributor";
+  const contributorEmail = (req.session && req.session.user && req.session.user.email) || req.body.contributorEmail || "student@portal.edu";
+  const contributorId = req.session && req.session.user ? req.session.user.id : null;
+  const isAdmin = Boolean(req.session && req.session.user && req.session.user.role === "admin");
+
+  // User can contribute resource only with admin's approval
+  const initialStatus = isAdmin ? "approved" : "pending";
   const uniqueId = "res-" + Date.now();
   let fileUrl = null;
+  let originalFileName = null;
 
   if (req.file) {
     fileUrl = "/uploads/" + req.file.filename;
+    originalFileName = req.file.originalname;
   }
 
   const fullContent = `
     <h3>${cleanTitle}</h3>
     <p><strong>Subject:</strong> ${cleanSubject}</p>
-    <p><strong>Contributed By:</strong> ${user}</p>
+    <p><strong>Contributed By:</strong> ${contributorName} (${contributorEmail})</p>
     <div class="note-callout">
       <p>${cleanDesc}</p>
     </div>
@@ -584,36 +594,70 @@ app.post("/api/upload", upload.single("resourceFile"), async (req, res) => {
 
   try {
     await sql`
-      INSERT INTO resources (id, title, subject, reading_time, level, summary, content, file_url, uploader_name)
-      VALUES (${uniqueId}, ${cleanTitle}, ${cleanSubject}, '5 min read', 'Student Upload', ${cleanDesc}, ${fullContent}, ${fileUrl}, ${user})
+      INSERT INTO resources (
+        id, title, subject, reading_time, level, summary, content, file_url, uploader_name, uploader_email, uploader_id, status
+      )
+      VALUES (
+        ${uniqueId}, ${cleanTitle}, ${cleanSubject}, '5 min read', 'Student Upload', ${cleanDesc}, ${fullContent}, ${fileUrl}, ${contributorName}, ${contributorEmail}, ${contributorId}, ${initialStatus}
+      )
     `;
 
-    res.json({
-      success: true,
-      message: "Study material published successfully!",
-      resource: {
-        id: uniqueId,
-        title: cleanTitle,
-        subject: cleanSubject,
-        summary: cleanDesc,
-        fileUrl: fileUrl,
-        uploader_name: user
-      }
+    // Asynchronously dispatch admin notification email with all contribution details
+    const portalUrl = `${req.protocol}://${req.get("host")}/#admin`;
+    sendAdminContributionNotification({
+      name: contributorName,
+      email: contributorEmail,
+      title: cleanTitle,
+      subject: cleanSubject,
+      description: cleanDesc,
+      fileUrl: fileUrl,
+      fileName: originalFileName,
+      time: new Date(),
+      id: uniqueId,
+      portalUrl: portalUrl,
+      status: initialStatus
+    }).catch((mailErr) => {
+      console.warn("Notice: Admin contribution notification encounter:", mailErr.message);
     });
+
+    if (initialStatus === "pending") {
+      res.json({
+        success: true,
+        pendingApproval: true,
+        message: "Thank you for contributing! Your study material has been submitted for administrator review and will appear on the portal once approved.",
+        resource: {
+          id: uniqueId,
+          title: cleanTitle,
+          subject: cleanSubject,
+          summary: cleanDesc,
+          fileUrl: fileUrl,
+          uploader_name: contributorName,
+          uploader_email: contributorEmail,
+          status: "pending"
+        }
+      });
+    } else {
+      res.json({
+        success: true,
+        pendingApproval: false,
+        message: "Study material published successfully!",
+        resource: {
+          id: uniqueId,
+          title: cleanTitle,
+          subject: cleanSubject,
+          summary: cleanDesc,
+          fileUrl: fileUrl,
+          uploader_name: contributorName,
+          uploader_email: contributorEmail,
+          status: "approved"
+        }
+      });
+    }
   } catch (err) {
     console.error("Upload DB error:", err);
-    // If DB insert failed, still return success for user experience
-    res.json({
-      success: true,
-      message: "Resource saved locally!",
-      resource: {
-        id: uniqueId,
-        title: cleanTitle,
-        subject: cleanSubject,
-        summary: cleanDesc,
-        fileUrl: fileUrl,
-        uploader_name: user
-      }
+    res.status(500).json({
+      success: false,
+      message: "Database error while saving your contribution. Please try again."
     });
   }
 });
@@ -622,13 +666,15 @@ app.post("/api/upload", upload.single("resourceFile"), async (req, res) => {
 app.get("/api/stats", async (req, res) => {
   try {
     const userCount = await sql`SELECT COUNT(*)::int AS count FROM users`;
-    const resCount = await sql`SELECT COUNT(*)::int AS count FROM resources`;
-    const subjectCount = await sql`SELECT COUNT(DISTINCT subject)::int AS count FROM resources`;
+    const resCount = await sql`SELECT COUNT(*)::int AS count FROM resources WHERE status = 'approved' OR status IS NULL`;
+    const pendingCount = await sql`SELECT COUNT(*)::int AS count FROM resources WHERE status = 'pending'`.catch(() => [{ count: 0 }]);
+    const subjectCount = await sql`SELECT COUNT(DISTINCT subject)::int AS count FROM resources WHERE status = 'approved' OR status IS NULL`;
     const notifCount = await sql`SELECT COUNT(*)::int AS count FROM admin_notifications`.catch(() => [{ count: 0 }]);
 
     res.json({
       users: (userCount && userCount[0] ? userCount[0].count : 8),
       resources: (resCount && resCount[0] ? resCount[0].count : 5),
+      pendingResources: (pendingCount && pendingCount[0] ? pendingCount[0].count : 0),
       subjects: (subjectCount && subjectCount[0] ? subjectCount[0].count : 5),
       notifications: (notifCount && notifCount[0] ? notifCount[0].count : 0),
       reads: "2.4k+"
@@ -637,6 +683,7 @@ app.get("/api/stats", async (req, res) => {
     res.json({
       users: 8,
       resources: 5,
+      pendingResources: 0,
       subjects: 5,
       notifications: 0,
       reads: "2.4k+"
@@ -704,6 +751,73 @@ app.delete("/api/admin/users/:id", requireAdmin, async (req, res) => {
   }
 });
 
+// Get all resources including pending contributions (Admin only)
+app.get("/api/admin/resources", requireAdmin, async (req, res) => {
+  try {
+    const resources = await sql`
+      SELECT 
+        id, title, subject, reading_time, level, summary, content, file_url, 
+        uploader_name, uploader_email, COALESCE(status, 'approved') AS status, created_at
+      FROM resources
+      ORDER BY 
+        CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+        created_at DESC
+    `;
+    res.json({ success: true, resources });
+  } catch (err) {
+    console.error("Admin resources fetch error:", err);
+    res.status(500).json({ success: false, message: "Could not fetch resources list." });
+  }
+});
+
+// Approve a student contributed resource (Admin only)
+app.post("/api/admin/resources/:id/approve", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const updated = await sql`
+      UPDATE resources 
+      SET status = 'approved' 
+      WHERE id = ${id}
+      RETURNING id, title, uploader_name, uploader_email
+    `;
+    if (!updated || updated.length === 0) {
+      return res.status(404).json({ success: false, message: "Resource not found." });
+    }
+    res.json({
+      success: true,
+      message: `Resource "${updated[0].title}" approved! It is now live in the student study portal repository.`,
+      resource: updated[0]
+    });
+  } catch (err) {
+    console.error("Admin resource approval error:", err);
+    res.status(500).json({ success: false, message: "Failed to approve resource." });
+  }
+});
+
+// Reject a student contributed resource (Admin only)
+app.post("/api/admin/resources/:id/reject", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const updated = await sql`
+      UPDATE resources 
+      SET status = 'rejected' 
+      WHERE id = ${id}
+      RETURNING id, title
+    `;
+    if (!updated || updated.length === 0) {
+      return res.status(404).json({ success: false, message: "Resource not found." });
+    }
+    res.json({
+      success: true,
+      message: `Resource "${updated[0].title}" was rejected and will not be displayed on the portal.`,
+      resource: updated[0]
+    });
+  } catch (err) {
+    console.error("Admin resource rejection error:", err);
+    res.status(500).json({ success: false, message: "Failed to reject resource." });
+  }
+});
+
 // Delete resource (Admin only)
 app.delete("/api/admin/resources/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
@@ -744,6 +858,34 @@ app.post("/api/admin/notifications/test", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("Admin test notification dispatch error:", err);
     res.status(500).json({ success: false, message: err.message || "Failed to dispatch test notification." });
+  }
+});
+
+// Trigger test resource contribution notification email to Admin (Admin only)
+app.post("/api/admin/notifications/test-contribution", requireAdmin, async (req, res) => {
+  try {
+    const portalUrl = `${req.protocol}://${req.get("host")}/#admin`;
+    const result = await sendAdminContributionNotification({
+      name: "Jordan Lee (Diagnostic Sample)",
+      email: "jordan.lee@university.edu",
+      title: "Unit 4 Graph Algorithms & Dijkstra Cheatsheet",
+      subject: "Data Structures",
+      description: "Comprehensive notes covering Dijkstra shortest path, Bellman-Ford, and topological sort with solved examination problems.",
+      fileUrl: "/uploads/sample-graph-algorithms.pdf",
+      fileName: "sample-graph-algorithms.pdf",
+      time: new Date(),
+      id: "res-test-sample",
+      portalUrl: portalUrl,
+      status: "pending"
+    });
+    res.json({
+      success: true,
+      message: `Test resource contribution alert dispatched to administrator (${ADMIN_EMAIL}).`,
+      result
+    });
+  } catch (err) {
+    console.error("Admin test contribution notification error:", err);
+    res.status(500).json({ success: false, message: err.message || "Failed to dispatch test contribution notification." });
   }
 });
 

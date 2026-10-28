@@ -124,9 +124,26 @@ async function initDB() {
         content TEXT NOT NULL,
         file_url TEXT,
         uploader_name TEXT DEFAULT 'Verified Faculty',
+        uploader_email TEXT,
+        uploader_id INT,
+        status TEXT DEFAULT 'approved',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
+
+    // Ensure status and contributor tracking columns exist on pre-existing table
+    try {
+      await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved'`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS uploader_email TEXT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS uploader_id INT`;
+    } catch (e) {}
+    try {
+      await sql`UPDATE resources SET status = 'approved' WHERE status IS NULL`;
+    } catch (e) {}
 
     // 3. Ensure master admin account exists
     const adminEmail = "admin.studyportal@gmail.com";

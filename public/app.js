@@ -244,8 +244,15 @@ function showPage(pageId, pushToHistory = true) {
     fetchLiveStats();
   }
 
+  // Initialize upload form & populated resources dropdown & load user tracking
+  if (pageId === "upload") {
+    initUploadPage();
+    loadUserSubmittedRequests();
+  }
+
   // Admin page load (parallel preload for instant tab switches)
   if (pageId === "admin") {
+    loadAdminContributionsTable();
     loadAdminUsersTable();
     loadAdminResourcesTable();
     loadAdminNotificationsTable();
@@ -1055,22 +1062,109 @@ function handleAiSearchSubmit(e) {
   }, 350);
 }
 
-// ================= UPLOAD CONTROLLER =================
+// ================= RESOURCE CONTRIBUTION & UPLOAD CONTROLLER (Requirements 1, 3, 5, 6) =================
 
 let selectedUploadFile = null;
 
+// Initialize Upload Page with verified session details and populated resources dropdown
+async function initUploadPage() {
+  const user = getCurrentUser();
+  const nameInput = document.getElementById("upload-contributor-name");
+  const emailInput = document.getElementById("upload-contributor-email");
+  const nameDisplay = document.getElementById("upload-user-name-display");
+  const emailDisplay = document.getElementById("upload-user-email-display");
+
+  if (user) {
+    if (nameInput) nameInput.value = user.name || "";
+    if (emailInput) emailInput.value = user.email || "";
+    if (nameDisplay) nameDisplay.textContent = user.name || "Registered Student";
+    if (emailDisplay) emailDisplay.textContent = user.email || "";
+  }
+
+  const subjectVal = document.getElementById("upload-subject")?.value || "C Programming";
+  await populateExistingResourcesDropdown(subjectVal);
+}
+
+// Populate the existing resource dropdown based on active syllabus library
+async function populateExistingResourcesDropdown(subjectFilter) {
+  const selectEl = document.getElementById("upload-existing-resource");
+  if (!selectEl) return;
+
+  if (!allResources || allResources.length === 0) {
+    try {
+      const res = await fetch("/api/resources");
+      if (res.ok) {
+        allResources = await res.json();
+      }
+    } catch (e) {
+      console.warn("Notice: Preloading resources for contribution dropdown:", e);
+    }
+  }
+
+  const prevSelectedVal = selectEl.value;
+  selectEl.innerHTML = `<option value="">-- Select Existing Resource Module / Question Paper --</option>`;
+
+  if (!allResources || allResources.length === 0) {
+    return;
+  }
+
+  // Sort resources: matching category first, then alphabetically by title
+  const sorted = [...allResources].sort((a, b) => {
+    const aMatch = subjectFilter && a.subject && a.subject.toLowerCase() === subjectFilter.toLowerCase();
+    const bMatch = subjectFilter && b.subject && b.subject.toLowerCase() === subjectFilter.toLowerCase();
+    if (aMatch && !bMatch) return -1;
+    if (!aMatch && bMatch) return 1;
+    return (a.title || "").localeCompare(b.title || "");
+  });
+
+  sorted.forEach((r) => {
+    const opt = document.createElement("option");
+    opt.value = r.id;
+    const subjTag = r.subject ? ` [${r.subject}]` : "";
+    opt.textContent = `${r.title}${subjTag}`;
+    if (r.id === prevSelectedVal) {
+      opt.selected = true;
+    }
+    selectEl.appendChild(opt);
+  });
+}
+
+function filterExistingResourcesDropdown(subject) {
+  populateExistingResourcesDropdown(subject);
+}
+
+// File Selection Handler: Strictly enforce PDF format (Requirements 1 & 6)
 function handleFileSelected(input) {
   if (input.files && input.files[0]) {
-    selectedUploadFile = input.files[0];
+    const file = input.files[0];
+    const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
     const nameEl = document.getElementById("dropzone-file-name");
+
+    if (!isPdf) {
+      showToast("Only PDF documents (.pdf) are permitted.");
+      showAuthMessage("upload-feedback", "Invalid file type. Please select a .pdf document.", "error");
+      input.value = "";
+      selectedUploadFile = null;
+      if (nameEl) {
+        nameEl.textContent = "Click or Drag & Drop PDF File Here";
+        nameEl.style.color = "";
+      }
+      return;
+    }
+
+    selectedUploadFile = file;
+    showAuthMessage("upload-feedback", "", "");
     if (nameEl) {
-      nameEl.textContent = `Attached: ${selectedUploadFile.name} (${(selectedUploadFile.size / 1024).toFixed(1)} KB)`;
-      nameEl.style.color = "var(--text-main)";
+      const sizeStr = file.size > 1024 * 1024 
+        ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+        : `${(file.size / 1024).toFixed(1)} KB`;
+      nameEl.textContent = `Attached: ${file.name} (${sizeStr})`;
+      nameEl.style.color = "#166534";
     }
   }
 }
 
-// Drag & drop support
+// Drag & drop PDF support
 const dropzone = document.getElementById("upload-dropzone");
 if (dropzone) {
   ["dragenter", "dragover"].forEach((eventName) => {
@@ -1087,38 +1181,94 @@ if (dropzone) {
   });
   dropzone.addEventListener("drop", (e) => {
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
-      selectedUploadFile = e.dataTransfer.files[0];
+      const file = e.dataTransfer.files[0];
+      const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
       const nameEl = document.getElementById("dropzone-file-name");
+      const fileInput = document.getElementById("upload-file-input");
+
+      if (!isPdf) {
+        showToast("Only PDF documents (.pdf) are permitted.");
+        showAuthMessage("upload-feedback", "Invalid file type. Please drop a .pdf document.", "error");
+        selectedUploadFile = null;
+        if (fileInput) fileInput.value = "";
+        if (nameEl) {
+          nameEl.textContent = "Click or Drag & Drop PDF File Here";
+          nameEl.style.color = "";
+        }
+        return;
+      }
+
+      selectedUploadFile = file;
+      showAuthMessage("upload-feedback", "", "");
       if (nameEl) {
-        nameEl.textContent = `Attached: ${selectedUploadFile.name} (${(selectedUploadFile.size / 1024).toFixed(1)} KB)`;
-        nameEl.style.color = "var(--text-main)";
+        const sizeStr = file.size > 1024 * 1024 
+          ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+          : `${(file.size / 1024).toFixed(1)} KB`;
+        nameEl.textContent = `Attached: ${file.name} (${sizeStr})`;
+        nameEl.style.color = "#166534";
       }
     }
   });
 }
 
+// Handle Contribution Submission (Requirements 1, 2, 3, 5, 6)
 async function handleUploadSubmit(e) {
   e.preventDefault();
 
   const title = document.getElementById("upload-title").value.trim();
   const subject = document.getElementById("upload-subject").value;
+  const existingResourceId = document.getElementById("upload-existing-resource").value;
   const description = document.getElementById("upload-description").value.trim();
+  const content = document.getElementById("upload-content").value.trim();
   const submitBtn = document.getElementById("upload-submit-btn");
 
-  if (!title || !description) {
-    showAuthMessage("upload-feedback", "Please enter a title and description.", "error");
+  if (!title) {
+    showAuthMessage("upload-feedback", "Please enter a resource title.", "error");
+    return;
+  }
+
+  if (!existingResourceId) {
+    showAuthMessage("upload-feedback", "Please select which existing coursework resource this contribution belongs to.", "error");
+    return;
+  }
+
+  if (!description) {
+    showAuthMessage("upload-feedback", "Please provide a description of your contribution.", "error");
+    return;
+  }
+
+  if (!content && !selectedUploadFile) {
+    showAuthMessage("upload-feedback", "Please provide contribution content (study notes/code) or attach a PDF file.", "error");
+    return;
+  }
+
+  if (selectedUploadFile && !selectedUploadFile.name.toLowerCase().endsWith(".pdf")) {
+    showAuthMessage("upload-feedback", "Only PDF documents (.pdf) are permitted.", "error");
     return;
   }
 
   showAuthMessage("upload-feedback", "Submitting contribution for administrator approval...", "info");
-  if (submitBtn) submitBtn.disabled = true;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `
+      <span class="btn-spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px;"></span>
+      <span>Submitting Contribution...</span>
+    `;
+  }
 
   try {
     const user = getCurrentUser();
     const formData = new FormData();
+    formData.append("resourceTitle", title);
     formData.append("title", title);
+    formData.append("category", subject);
     formData.append("subject", subject);
+    formData.append("existingResourceId", existingResourceId);
+    formData.append("existing_resource_id", existingResourceId);
     formData.append("description", description);
+    formData.append("contributionContent", content);
+    formData.append("content", content);
+
     if (user) {
       if (user.name) formData.append("contributorName", user.name);
       if (user.email) formData.append("contributorEmail", user.email);
@@ -1127,50 +1277,233 @@ async function handleUploadSubmit(e) {
       formData.append("resourceFile", selectedUploadFile);
     }
 
-    const response = await fetch("/api/upload", {
+    const response = await fetch("/api/contributions", {
       method: "POST",
-      body: formData
+      body: formData,
+      credentials: "same-origin"
     });
 
     const data = await response.json();
 
     if (response.ok && data.success) {
-      if (data.pendingApproval) {
-        showAuthMessage(
-          "upload-feedback",
-          "✓ Thank you! Your contribution has been submitted for administrator review and will appear on the portal once approved. An alert has been dispatched to the admin.",
-          "success"
-        );
-        showToast("Contribution submitted for admin approval!");
-      } else {
-        showAuthMessage("upload-feedback", "Study material published to repository successfully.", "success");
-        showToast("Document published to coursework repository.");
-      }
+      const successMsg = data.message || "Your contribution request has been submitted successfully. Please wait for admin approval.";
+      showAuthMessage(
+        "upload-feedback",
+        successMsg,
+        "success"
+      );
+      showToast(successMsg);
 
-      fetchResources();
-      fetchLiveStats();
-
+      // Reset form
       document.getElementById("upload-form").reset();
       selectedUploadFile = null;
+      const fileInput = document.getElementById("upload-file-input");
+      if (fileInput) fileInput.value = "";
       const nameEl = document.getElementById("dropzone-file-name");
       if (nameEl) {
-        nameEl.textContent = "Click or Drag & Drop File Here";
+        nameEl.textContent = "Click or Drag & Drop PDF File Here";
         nameEl.style.color = "";
       }
 
+      // Re-fill verified student identity
+      initUploadPage();
+      loadUserSubmittedRequests(true);
+      fetchLiveStats();
+      cachedAdminContributions = null;
+
       setTimeout(() => {
         showAuthMessage("upload-feedback", "", "");
-        if (!data.pendingApproval) {
-          showPage("resources");
-        }
-      }, 4000);
+      }, 7000);
     } else {
-      showAuthMessage("upload-feedback", data.message || "Upload failed.", "error");
+      showAuthMessage("upload-feedback", data.message || "Contribution submission failed.", "error");
+      showToast(data.message || "Submission failed.");
     }
   } catch (err) {
-    showAuthMessage("upload-feedback", "Connection error. Please try again.", "error");
+    showAuthMessage("upload-feedback", "Network error while submitting. Please check connection and try again.", "error");
+    showToast("Network error during submission.");
   } finally {
-    if (submitBtn) submitBtn.disabled = false;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Submit Contribution for Administrator Approval</span>
+      `;
+    }
+  }
+}
+
+// ================= CONTRIBUTOR STATUS TRACKING (Requirement 4) =================
+
+// Contributor Subtabs: Switch between Submit Form and My Requests
+function switchUploadTab(tabName, btn) {
+  const formBtn = document.getElementById("upload-tab-btn-form");
+  const requestsBtn = document.getElementById("upload-tab-btn-my-requests");
+  const formPanel = document.getElementById("upload-panel-form");
+  const requestsPanel = document.getElementById("upload-panel-my-requests");
+
+  if (tabName === "my-requests") {
+    if (formBtn) formBtn.classList.remove("active");
+    if (requestsBtn) requestsBtn.classList.add("active");
+    if (formPanel) {
+      formPanel.style.display = "none";
+      formPanel.classList.remove("active");
+    }
+    if (requestsPanel) {
+      requestsPanel.style.display = "block";
+      requestsPanel.classList.add("active");
+    }
+    loadUserSubmittedRequests();
+  } else {
+    if (formBtn) formBtn.classList.add("active");
+    if (requestsBtn) requestsBtn.classList.remove("active");
+    if (formPanel) {
+      formPanel.style.display = "block";
+      formPanel.classList.add("active");
+    }
+    if (requestsPanel) {
+      requestsPanel.style.display = "none";
+      requestsPanel.classList.remove("active");
+    }
+  }
+}
+
+// Fetch and render the authenticated student's submitted contribution requests
+async function loadUserSubmittedRequests(forceFresh = false) {
+  const tbody = document.getElementById("my-requests-table-body");
+  const counterBadge = document.getElementById("upload-my-requests-counter");
+  const totalEl = document.getElementById("my-stat-total");
+  const pendingEl = document.getElementById("my-stat-pending");
+  const approvedEl = document.getElementById("my-stat-approved");
+  const rejectedEl = document.getElementById("my-stat-rejected");
+
+  if (!isUserLoggedIn()) {
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="padding: 28px; text-align: center; color: var(--text-dim);">
+            Please sign in to track your submitted contribution requests.
+          </td>
+        </tr>
+      `;
+    }
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/user/contributions${forceFresh ? "?_=" + Date.now() : ""}`, {
+      credentials: "same-origin"
+    });
+    const data = await res.json();
+
+    if (res.ok && data.contributions) {
+      const list = data.contributions;
+      const total = list.length;
+      const pending = list.filter((c) => (c.status || "").toLowerCase() === "pending").length;
+      const approved = list.filter((c) => (c.status || "").toLowerCase() === "approved").length;
+      const rejected = list.filter((c) => (c.status || "").toLowerCase() === "rejected").length;
+
+      if (totalEl) totalEl.textContent = total;
+      if (pendingEl) pendingEl.textContent = pending;
+      if (approvedEl) approvedEl.textContent = approved;
+      if (rejectedEl) rejectedEl.textContent = rejected;
+
+      if (counterBadge) {
+        if (total > 0) {
+          counterBadge.textContent = total;
+          counterBadge.style.display = "inline-block";
+        } else {
+          counterBadge.style.display = "none";
+        }
+      }
+
+      if (!tbody) return;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="padding: 36px 20px; text-align: center; color: var(--text-dim);">
+              <div style="font-size: 15px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">No contribution requests submitted yet</div>
+              <p style="font-size: 13px; margin: 0 0 16px 0;">Contribute notes or attachments for existing coursework to collaborate with your cohort.</p>
+              <button class="btn-primary btn-sm" onclick="switchUploadTab('form')">+ Submit a Contribution Request</button>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = list
+        .map((c) => {
+          const statusVal = (c.status || "Pending").toLowerCase();
+          const isPending = statusVal === "pending";
+          const isApproved = statusVal === "approved";
+          const isRejected = statusVal === "rejected";
+
+          const statusBadge = isPending
+            ? `<span class="status-pill pending">⏳ Pending</span>`
+            : isApproved
+            ? `<span class="status-pill approved">✓ Approved</span>`
+            : `<span class="status-pill rejected">✕ Rejected</span>`;
+
+          const submittedFormatted = formatDateTimeWithTz(c.submitted_at);
+
+          return `
+            <tr style="${isPending ? "background: #fffdf5;" : ""}">
+              <td>
+                <div style="font-weight: 700; color: var(--text-main); font-size: 13.5px;">${escapeHtml(c.resource_title)}</div>
+                <div style="margin-top: 4px;">
+                  <span class="subject-badge" style="font-size: 10px; padding: 2px 7px;">${escapeHtml(c.category || "General")}</span>
+                </div>
+              </td>
+              <td>
+                <div style="font-weight: 600; color: #1e3a8a; font-size: 12.5px;">${escapeHtml(c.existing_resource_title || c.existing_resource_id || "General")}</div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); margin-top: 1px;">ID: ${escapeHtml(c.existing_resource_id || "-")}</div>
+              </td>
+              <td>
+                <div style="font-size: 12.5px; color: #334155; line-height: 1.45; max-width: 240px;">
+                  ${escapeHtml(c.description || "-")}
+                </div>
+                ${
+                  c.file_path
+                    ? `<div style="margin-top: 6px;"><a href="${c.file_path}" target="_blank" style="font-size: 11.5px; color: var(--blue-primary); font-weight: 600; text-decoration: none;">📎 View Attached PDF</a></div>`
+                    : ""
+                }
+                ${
+                  c.contribution_content
+                    ? `<div style="margin-top: 4px; font-size: 11px; color: #64748b; font-family: var(--font-mono); background: #f1f5f9; padding: 2px 6px; border-radius: 4px; display: inline-block;">📝 Text notes included</div>`
+                    : ""
+                }
+              </td>
+              <td>
+                <div style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-main); line-height: 1.4;">
+                  ${submittedFormatted}
+                </div>
+              </td>
+              <td>${statusBadge}</td>
+              <td style="text-align: right;">
+                ${
+                  isApproved
+                    ? `<span style="font-size: 12px; color: #059669; font-weight: 600;">✓ Published in Resources</span>`
+                    : isRejected
+                    ? `<span style="font-size: 12px; color: #dc2626; font-weight: 600;">${escapeHtml(c.admin_feedback || "Declined by admin")}</span>`
+                    : `<span style="font-size: 12px; color: #b45309; font-style: italic;">Awaiting admin approval</span>`
+                }
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+  } catch (err) {
+    console.error("Load user requests error:", err);
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">
+            Failed to load your submitted requests. Please refresh.
+          </td>
+        </tr>
+      `;
+    }
   }
 }
 
@@ -1178,8 +1511,12 @@ async function handleUploadSubmit(e) {
 
 let cachedAdminUsers = null;
 let cachedAdminNotifications = null;
+let cachedAdminContributions = null;
 let isFetchingAdminUsers = false;
 let isFetchingAdminNotifs = false;
+let isFetchingAdminContribs = false;
+let activeContribFilter = "all";
+let currentModalContrib = null;
 
 function getAdminAuthHeaders() {
   const user = getCurrentUser();
@@ -1201,10 +1538,560 @@ function switchAdminTab(tabName, btn) {
   const panel = document.getElementById(`admin-panel-${tabName}`);
   if (panel) panel.classList.add("active");
 
+  if (tabName === "contributions") loadAdminContributionsTable();
   if (tabName === "users") loadAdminUsersTable();
   if (tabName === "resources") loadAdminResourcesTable();
   if (tabName === "notifications") loadAdminNotificationsTable();
 }
+
+// Helper: Format date and exact time including timezone (Requirement 2 & 4)
+function formatDateTimeWithTz(dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short"
+  });
+}
+
+// Update counter badges across filters and tabs
+function updateContribCounterBadges(contributions) {
+  if (!contributions) return;
+  const total = contributions.length;
+  const pending = contributions.filter((c) => (c.status || "").toLowerCase() === "pending").length;
+  const approved = contributions.filter((c) => (c.status || "").toLowerCase() === "approved").length;
+  const rejected = contributions.filter((c) => (c.status || "").toLowerCase() === "rejected").length;
+
+  const countAll = document.getElementById("count-contrib-all");
+  const countPending = document.getElementById("count-contrib-pending");
+  const countApproved = document.getElementById("count-contrib-approved");
+  const countRejected = document.getElementById("count-contrib-rejected");
+  const totalBadge = document.getElementById("admin-contrib-total-badge");
+  const tabCounter = document.getElementById("admin-contrib-counter");
+
+  if (countAll) countAll.textContent = total;
+  if (countPending) countPending.textContent = pending;
+  if (countApproved) countApproved.textContent = approved;
+  if (countRejected) countRejected.textContent = rejected;
+  if (totalBadge) totalBadge.textContent = `${total} Submission${total === 1 ? "" : "s"}`;
+
+  if (tabCounter) {
+    if (pending > 0) {
+      tabCounter.textContent = `${pending} Pending`;
+      tabCounter.style.display = "inline-block";
+    } else {
+      tabCounter.style.display = "none";
+    }
+  }
+
+  // Admin Pending Badges & Notification Banner (Requirement 2)
+  const navBadge = document.getElementById("nav-admin-pending-badge");
+  const mobBadge = document.getElementById("mob-admin-pending-badge");
+  const alertBanner = document.getElementById("admin-new-contrib-alert-banner");
+  const alertSub = document.getElementById("admin-new-contrib-alert-sub");
+
+  if (navBadge) {
+    if (pending > 0) {
+      navBadge.textContent = pending;
+      navBadge.style.display = "inline-flex";
+    } else {
+      navBadge.style.display = "none";
+    }
+  }
+
+  if (mobBadge) {
+    if (pending > 0) {
+      mobBadge.textContent = pending;
+      mobBadge.style.display = "inline-block";
+    } else {
+      mobBadge.style.display = "none";
+    }
+  }
+
+  if (alertBanner) {
+    if (pending > 0) {
+      alertBanner.style.display = "block";
+      if (alertSub) {
+        alertSub.textContent = `${pending} pending contribution request${pending === 1 ? "" : "s"} require administrator review.`;
+      }
+    } else {
+      alertBanner.style.display = "none";
+    }
+  }
+}
+
+// Load contribution requests table (Admin only - Requirement 4)
+async function loadAdminContributionsTable(forceFresh = false) {
+  const tbody = document.getElementById("admin-contributions-table-body");
+  if (!tbody) return;
+
+  if (forceFresh) {
+    cachedAdminContributions = null;
+    isFetchingAdminContribs = false;
+  }
+
+  // 1. Instant render from memory cache
+  if (cachedAdminContributions && !forceFresh) {
+    updateContribCounterBadges(cachedAdminContributions);
+    renderAdminContributionsRows(cachedAdminContributions);
+  }
+
+  if (isFetchingAdminContribs && !forceFresh) return;
+  isFetchingAdminContribs = true;
+
+  try {
+    const url = forceFresh 
+      ? `/api/admin/contributions?fresh=true&_=${Date.now()}`
+      : "/api/admin/contributions";
+    const res = await fetch(url, {
+      headers: { ...getAdminAuthHeaders(), "Cache-Control": forceFresh ? "no-cache" : "default" },
+      credentials: "same-origin"
+    });
+    const data = await res.json();
+
+    if (res.ok && data.contributions) {
+      cachedAdminContributions = data.contributions;
+      updateContribCounterBadges(cachedAdminContributions);
+      renderAdminContributionsRows(cachedAdminContributions);
+    } else {
+      if (!cachedAdminContributions) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">
+              <div style="margin-bottom: 8px;">${escapeHtml(data.message || "Failed to load contribution requests.")}</div>
+              <button class="btn-secondary btn-sm" onclick="refreshAdminContributions(this)">↻ Retry Loading</button>
+            </td>
+          </tr>
+        `;
+      }
+    }
+  } catch (err) {
+    if (!cachedAdminContributions) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">
+            <div style="margin-bottom: 8px;">Failed to connect to contribution requests endpoint.</div>
+            <button class="btn-secondary btn-sm" onclick="refreshAdminContributions(this)">↻ Retry Loading</button>
+          </td>
+        </tr>
+      `;
+    }
+  } finally {
+    isFetchingAdminContribs = false;
+  }
+}
+
+async function refreshAdminContributions(btn) {
+  let targetBtn = null;
+  if (btn && btn.nodeType === 1) {
+    targetBtn = btn.closest("button") || btn;
+  } else {
+    targetBtn = document.getElementById("btn-refresh-contributions");
+  }
+  const originalHtml = targetBtn ? targetBtn.innerHTML : "";
+
+  if (targetBtn) {
+    targetBtn.disabled = true;
+    targetBtn.innerHTML = `
+      <span class="btn-spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid #555; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px;"></span>
+      <span>Refreshing...</span>
+    `;
+  }
+
+  try {
+    cachedAdminContributions = null;
+    await loadAdminContributionsTable(true);
+    showToast("✓ Contribution requests queue refreshed.");
+  } catch (e) {
+    console.error("Refresh contributions error:", e);
+    showToast("Failed to refresh contribution queue.");
+  } finally {
+    if (targetBtn) {
+      targetBtn.disabled = false;
+      targetBtn.innerHTML = originalHtml;
+    }
+  }
+}
+
+// Filter contributions by status: All, Pending, Approved, Rejected (Requirement 4)
+function filterContributionsByStatus(status, btn) {
+  activeContribFilter = status || "all";
+  document.querySelectorAll(".contrib-filter-btn").forEach((b) => {
+    if (b.getAttribute("data-status") === status) {
+      b.classList.add("active");
+    } else {
+      b.classList.remove("active");
+    }
+  });
+
+  const heading = document.getElementById("contrib-table-heading");
+  if (heading) {
+    if (status === "pending") heading.textContent = "Pending Contribution Requests";
+    else if (status === "approved") heading.textContent = "Approved Contributions";
+    else if (status === "rejected") heading.textContent = "Rejected Contributions";
+    else heading.textContent = "All Contribution Requests";
+  }
+
+  if (cachedAdminContributions) {
+    renderAdminContributionsRows(cachedAdminContributions);
+  }
+}
+
+// Render Contribution Requests Table Rows (Requirement 4)
+function renderAdminContributionsRows(allContribs) {
+  const tbody = document.getElementById("admin-contributions-table-body");
+  if (!tbody || !allContribs) return;
+
+  const filtered = allContribs.filter((c) => {
+    if (activeContribFilter === "all") return true;
+    return (c.status || "").toLowerCase() === activeContribFilter.toLowerCase();
+  });
+
+  if (filtered.length === 0) {
+    const filterLabels = {
+      all: "contribution requests",
+      pending: "pending contribution requests",
+      approved: "approved contributions",
+      rejected: "rejected contributions"
+    };
+    const label = filterLabels[activeContribFilter] || "contributions";
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="padding: 32px 20px; text-align: center; color: var(--text-dim);">
+          No ${label} found.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered
+    .map((c) => {
+      const statusVal = (c.status || "Pending").toLowerCase();
+      const isPending = statusVal === "pending";
+      const isApproved = statusVal === "approved";
+      const isRejected = statusVal === "rejected";
+
+      const statusBadge = isPending
+        ? `<span class="status-pill pending">⏳ Pending</span>`
+        : isApproved
+        ? `<span class="status-pill approved">✓ Approved</span>`
+        : `<span class="status-pill rejected">✕ Rejected</span>`;
+
+      const submittedFormatted = formatDateTimeWithTz(c.submitted_at);
+
+      return `
+        <tr style="${isPending ? "background: #fffdf5;" : ""}">
+          <td>
+            <div style="font-weight: 700; color: var(--text-main); font-size: 13.5px;">${escapeHtml(c.contributor_name || "Student")}</div>
+            <div style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dim); margin-top: 2px;">${escapeHtml(c.contributor_email || "-")}</div>
+          </td>
+          <td>
+            <div style="font-weight: 700; color: var(--text-main); font-size: 13.5px;">${escapeHtml(c.resource_title)}</div>
+            <div style="margin-top: 4px;">
+              <span class="subject-badge" style="font-size: 10px; padding: 2px 7px;">${escapeHtml(c.category || "General")}</span>
+              ${c.file_path ? `<span style="font-size: 11px; color: var(--blue-primary); margin-left: 6px;">📎 PDF</span>` : ""}
+            </div>
+          </td>
+          <td>
+            <div style="font-weight: 600; color: #1e3a8a; font-size: 12.5px;">${escapeHtml(c.existing_resource_title || c.existing_resource_id || "Coursework")}</div>
+            <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); margin-top: 1px;">ID: ${escapeHtml(c.existing_resource_id || "-")}</div>
+          </td>
+          <td>
+            <div style="max-width: 260px; font-size: 12.5px; color: #334155; line-height: 1.45;">
+              ${escapeHtml(c.description || "-")}
+            </div>
+            ${
+              c.file_path
+                ? `<div style="margin-top: 5px;"><a href="${c.file_path}" target="_blank" style="font-size: 11.5px; color: var(--blue-primary); font-weight: 600; text-decoration: none;">📎 View Submitted File</a></div>`
+                : ""
+            }
+            ${
+              c.contribution_content
+                ? `<div style="margin-top: 5px; font-size: 11px; color: #475569; font-family: var(--font-mono); background: #f1f5f9; padding: 2px 6px; border-radius: 4px; display: inline-block;">📝 Notes included</div>`
+                : ""
+            }
+          </td>
+          <td>
+            <div style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-main); line-height: 1.4;">
+              ${submittedFormatted}
+            </div>
+          </td>
+          <td>${statusBadge}</td>
+          <td style="text-align: right; white-space: nowrap;">
+            <div class="admin-table-actions" style="justify-content: flex-end; gap: 6px;">
+              <button class="btn-secondary btn-sm" onclick="openContributionModal(${c.id})" title="View full details and notes">
+                View Details
+              </button>
+              <button class="btn-success btn-sm" onclick="confirmApproveContribution(${c.id}, '${escapeHtml(c.resource_title)}', '${escapeHtml(c.contributor_name)}')" style="background: ${isApproved ? "#94a3b8" : "#059669"}; color: #ffffff; padding: 5px 12px; font-weight: 600; border: none; border-radius: 4px; cursor: ${isApproved ? "default" : "pointer"};" ${isApproved ? "disabled" : ""} title="${isApproved ? "Already approved and published" : "Approve and publish live to portal"}">
+                ${isApproved ? "✓ Approved" : "Approve"}
+              </button>
+              <button class="btn-danger btn-sm" onclick="confirmRejectContribution(${c.id}, '${escapeHtml(c.resource_title)}', '${escapeHtml(c.contributor_name)}')" style="background: ${isRejected ? "#94a3b8" : "#dc2626"}; color: #ffffff; padding: 5px 11px; font-weight: 600; border: none; border-radius: 4px; cursor: ${isRejected ? "default" : "pointer"};" ${isRejected ? "disabled" : ""} title="${isRejected ? "Already rejected" : "Decline contribution"}">
+                ${isRejected ? "✕ Rejected" : "Reject"}
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+// Confirmation Dialog before Approving (Requirement 4)
+async function confirmApproveContribution(id, title, contributorName) {
+  const confirmed = confirm(
+    `CONFIRM APPROVAL\n\n` +
+    `Are you sure you want to approve this contribution?\n\n` +
+    `• Resource: "${title}"\n` +
+    `• Contributor: ${contributorName}\n\n` +
+    `This will immediately publish the study material live to all students and send an approval confirmation email to the contributor.`
+  );
+  if (!confirmed) return;
+
+  await approveContributionApi(id);
+}
+
+// Confirmation Dialog before Rejecting (Requirement 4)
+async function confirmRejectContribution(id, title, contributorName) {
+  const reason = prompt(
+    `CONFIRM REJECTION\n\n` +
+    `Are you sure you want to reject this contribution?\n\n` +
+    `• Resource: "${title}"\n` +
+    `• Contributor: ${contributorName}\n\n` +
+    `Enter feedback or reason for rejection (this will be emailed to the contributor):`,
+    "Content does not meet syllabus guidelines or duplicate submission."
+  );
+
+  if (reason === null) {
+    return;
+  }
+
+  await rejectContributionApi(id, reason.trim());
+}
+
+async function approveContributionApi(id, adminFeedback = null) {
+  try {
+    const res = await fetch(`/api/admin/contributions/${id}/approve`, {
+      method: "POST",
+      headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ adminFeedback })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showToast(data.message || "✓ Contribution approved & published!");
+      cachedAdminContributions = null;
+      loadAdminContributionsTable(true);
+      loadAdminResourcesTable();
+      fetchResources();
+      fetchLiveStats();
+    } else {
+      showToast(data.message || "Could not approve contribution.");
+    }
+  } catch (err) {
+    console.error("Approve API error:", err);
+    showToast("Network error while approving contribution.");
+  }
+}
+
+async function rejectContributionApi(id, adminFeedback = null) {
+  try {
+    const res = await fetch(`/api/admin/contributions/${id}/reject`, {
+      method: "POST",
+      headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ adminFeedback })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showToast(data.message || "Contribution was rejected.");
+      cachedAdminContributions = null;
+      loadAdminContributionsTable(true);
+      loadAdminResourcesTable();
+      fetchResources();
+      fetchLiveStats();
+    } else {
+      showToast(data.message || "Could not reject contribution.");
+    }
+  } catch (err) {
+    console.error("Reject API error:", err);
+    showToast("Network error while rejecting contribution.");
+  }
+}
+
+// Open Contribution Details Modal (Requirement 4)
+async function openContributionModal(id) {
+  let contrib = null;
+  if (cachedAdminContributions) {
+    contrib = cachedAdminContributions.find((item) => String(item.id) === String(id));
+  }
+
+  if (!contrib) {
+    try {
+      const res = await fetch(`/api/admin/contributions/${id}`, {
+        headers: getAdminAuthHeaders(),
+        credentials: "same-origin"
+      });
+      const data = await res.json();
+      if (res.ok && data.contribution) {
+        contrib = data.contribution;
+      }
+    } catch (e) {
+      console.error("Fetch modal contrib error:", e);
+    }
+  }
+
+  if (!contrib) {
+    showToast("Could not load contribution details.");
+    return;
+  }
+
+  currentModalContrib = contrib;
+
+  const modal = document.getElementById("contrib-details-modal");
+  const statusBadge = document.getElementById("cdm-status-badge");
+  const catBadge = document.getElementById("cdm-category");
+  const idBadge = document.getElementById("cdm-id-badge");
+  const titleEl = document.getElementById("cdm-title");
+  const nameEl = document.getElementById("cdm-contributor-name");
+  const emailEl = document.getElementById("cdm-contributor-email");
+  const existResEl = document.getElementById("cdm-existing-resource");
+  const existIdEl = document.getElementById("cdm-existing-id");
+  const subTimeEl = document.getElementById("cdm-submission-time");
+  const reviewMetaEl = document.getElementById("cdm-review-meta");
+  const descEl = document.getElementById("cdm-description");
+  const contentContainer = document.getElementById("cdm-content-container");
+  const contentEl = document.getElementById("cdm-content");
+  const fileContainer = document.getElementById("cdm-file-container");
+  const fileNameEl = document.getElementById("cdm-file-name");
+  const fileLinkEl = document.getElementById("cdm-file-download-link");
+  const feedbackInput = document.getElementById("cdm-admin-feedback");
+  const approveBtn = document.getElementById("cdm-approve-btn");
+  const rejectBtn = document.getElementById("cdm-reject-btn");
+
+  const statusVal = (contrib.status || "Pending").toLowerCase();
+  if (statusBadge) {
+    statusBadge.className = `status-pill ${statusVal}`;
+    statusBadge.textContent = statusVal === "pending" ? "⏳ Pending Approval" : statusVal === "approved" ? "✓ Approved" : "✕ Rejected";
+  }
+
+  if (catBadge) catBadge.textContent = contrib.category || "General";
+  if (idBadge) idBadge.textContent = `ID: #${contrib.id}`;
+  if (titleEl) titleEl.textContent = contrib.resource_title;
+  if (nameEl) nameEl.textContent = contrib.contributor_name || "Student";
+  if (emailEl) emailEl.textContent = contrib.contributor_email || "-";
+  if (existResEl) existResEl.textContent = contrib.existing_resource_title || contrib.existing_resource_id || "Coursework Module";
+  if (existIdEl) existIdEl.textContent = `Target Resource ID: ${contrib.existing_resource_id || "-"}`;
+  if (subTimeEl) subTimeEl.textContent = formatDateTimeWithTz(contrib.submitted_at);
+
+  if (reviewMetaEl) {
+    if (contrib.reviewed_at) {
+      reviewMetaEl.textContent = `Reviewed on ${formatDateTimeWithTz(contrib.reviewed_at)} by ${contrib.reviewed_by || "Administrator"}`;
+    } else {
+      reviewMetaEl.textContent = "Awaiting review";
+    }
+  }
+
+  if (descEl) descEl.textContent = contrib.description || "No description provided.";
+
+  if (contentContainer && contentEl) {
+    if (contrib.contribution_content && contrib.contribution_content.trim()) {
+      contentContainer.style.display = "block";
+      contentEl.textContent = contrib.contribution_content;
+    } else {
+      contentContainer.style.display = "none";
+    }
+  }
+
+  if (fileContainer && fileLinkEl && fileNameEl) {
+    if (contrib.file_path) {
+      fileContainer.style.display = "block";
+      fileLinkEl.href = contrib.file_path;
+      fileNameEl.textContent = contrib.file_path.split("/").pop();
+    } else {
+      fileContainer.style.display = "none";
+    }
+  }
+
+  if (feedbackInput) {
+    feedbackInput.value = contrib.admin_feedback || "";
+  }
+
+  if (approveBtn) {
+    approveBtn.style.display = statusVal === "approved" ? "none" : "inline-block";
+  }
+  if (rejectBtn) {
+    rejectBtn.style.display = statusVal === "rejected" ? "none" : "inline-block";
+  }
+
+  if (modal) {
+    modal.style.display = "flex";
+  }
+}
+
+function closeContributionModal() {
+  const modal = document.getElementById("contrib-details-modal");
+  if (modal) modal.style.display = "none";
+  currentModalContrib = null;
+}
+
+// Modal Approve Handler
+async function handleModalApproveClick() {
+  if (!currentModalContrib) return;
+
+  const feedbackInput = document.getElementById("cdm-admin-feedback");
+  const feedback = feedbackInput ? feedbackInput.value.trim() : null;
+
+  const confirmed = confirm(
+    `CONFIRM APPROVAL\n\n` +
+    `Approve contribution "${currentModalContrib.resource_title}"?\n\n` +
+    `This will publish the study material live to all students.`
+  );
+  if (!confirmed) return;
+
+  const contribId = currentModalContrib.id;
+  closeContributionModal();
+  await approveContributionApi(contribId, feedback);
+}
+
+// Modal Reject Handler
+async function handleModalRejectClick() {
+  if (!currentModalContrib) return;
+
+  const feedbackInput = document.getElementById("cdm-admin-feedback");
+  const feedback = feedbackInput && feedbackInput.value.trim() 
+    ? feedbackInput.value.trim() 
+    : "Declined by administrator.";
+
+  const confirmed = confirm(
+    `CONFIRM REJECTION\n\n` +
+    `Reject contribution "${currentModalContrib.resource_title}"?\n\n` +
+    `Feedback: "${feedback}"`
+  );
+  if (!confirmed) return;
+
+  const contribId = currentModalContrib.id;
+  closeContributionModal();
+  await rejectContributionApi(contribId, feedback);
+}
+
+// Close modal on Escape
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const modal = document.getElementById("contrib-details-modal");
+    if (modal && modal.style.display === "flex") {
+      closeContributionModal();
+    }
+  }
+});
 
 function renderAdminUsersRows(users) {
   const tbody = document.getElementById("admin-users-table-body");
@@ -1265,6 +2152,11 @@ async function loadAdminUsersTable(forceFresh = false) {
   const tbody = document.getElementById("admin-users-table-body");
   if (!tbody) return;
 
+  if (forceFresh) {
+    isFetchingAdminUsers = false;
+    cachedAdminUsers = null;
+  }
+
   // 1. FAST PATH: Instant render from memory cache in 0 milliseconds
   if (cachedAdminUsers && !forceFresh) {
     renderAdminUsersRows(cachedAdminUsers);
@@ -1274,8 +2166,9 @@ async function loadAdminUsersTable(forceFresh = false) {
   isFetchingAdminUsers = true;
 
   try {
-    const res = await fetch("/api/admin/users", {
-      headers: getAdminAuthHeaders(),
+    const url = forceFresh ? `/api/admin/users?fresh=true&_=${Date.now()}` : "/api/admin/users";
+    const res = await fetch(url, {
+      headers: { ...getAdminAuthHeaders(), "Cache-Control": forceFresh ? "no-cache" : "default" },
       credentials: "same-origin"
     });
     const data = await res.json();
@@ -1290,7 +2183,7 @@ async function loadAdminUsersTable(forceFresh = false) {
           <tr>
             <td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">
               <div style="margin-bottom: 8px;">${escapeHtml(data.message || "Failed to load directory.")}</div>
-              <button class="btn-secondary btn-sm" onclick="loadAdminUsersTable(true)">↻ Retry Loading</button>
+              <button class="btn-secondary btn-sm" onclick="refreshAdminUsersDirectory(this)">↻ Retry Loading</button>
             </td>
           </tr>
         `;
@@ -1302,13 +2195,45 @@ async function loadAdminUsersTable(forceFresh = false) {
         <tr>
           <td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">
             <div style="margin-bottom: 8px;">Failed to connect to admin directory endpoint.</div>
-            <button class="btn-secondary btn-sm" onclick="loadAdminUsersTable(true)">↻ Retry Loading</button>
+            <button class="btn-secondary btn-sm" onclick="refreshAdminUsersDirectory(this)">↻ Retry Loading</button>
           </td>
         </tr>
       `;
     }
   } finally {
     isFetchingAdminUsers = false;
+  }
+}
+
+async function refreshAdminUsersDirectory(btn) {
+  let targetBtn = null;
+  if (btn && btn.nodeType === 1) {
+    targetBtn = btn.closest("button") || btn;
+  } else {
+    targetBtn = document.getElementById("btn-refresh-users");
+  }
+  const originalHtml = targetBtn ? targetBtn.innerHTML : "";
+
+  if (targetBtn) {
+    targetBtn.disabled = true;
+    targetBtn.innerHTML = `
+      <span class="btn-spinner"></span>
+      <span>Refreshing...</span>
+    `;
+  }
+
+  try {
+    cachedAdminUsers = null;
+    await loadAdminUsersTable(true);
+    showToast("✓ User directory refreshed.");
+  } catch (e) {
+    console.error("Refresh users error:", e);
+    showToast("Failed to refresh user directory.");
+  } finally {
+    if (targetBtn) {
+      targetBtn.disabled = false;
+      targetBtn.innerHTML = originalHtml;
+    }
   }
 }
 
@@ -1673,6 +2598,11 @@ async function loadAdminNotificationsTable(forceFresh = false) {
   const engineStatusDisplay = document.getElementById("admin-email-engine-status");
   if (!tbody) return;
 
+  if (forceFresh) {
+    isFetchingAdminNotifs = false;
+    cachedAdminNotifications = null;
+  }
+
   // 1. FAST PATH: Render immediately from memory cache (0 milliseconds)
   if (cachedAdminNotifications && !forceFresh) {
     renderAdminNotificationsRows(cachedAdminNotifications);
@@ -1711,8 +2641,9 @@ async function loadAdminNotificationsTable(forceFresh = false) {
   isFetchingAdminNotifs = true;
 
   try {
-    const res = await fetch("/api/admin/notifications", {
-      headers: getAdminAuthHeaders(),
+    const url = forceFresh ? `/api/admin/notifications?fresh=true&_=${Date.now()}` : "/api/admin/notifications";
+    const res = await fetch(url, {
+      headers: { ...getAdminAuthHeaders(), "Cache-Control": forceFresh ? "no-cache" : "default" },
       credentials: "same-origin"
     });
     const data = await res.json();
@@ -1726,7 +2657,7 @@ async function loadAdminNotificationsTable(forceFresh = false) {
           <tr>
             <td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">
               <div style="margin-bottom: 8px;">${escapeHtml(data.message || "Failed to load notifications.")}</div>
-              <button class="btn-secondary btn-sm" onclick="loadAdminNotificationsTable(true)">↻ Retry Loading</button>
+              <button class="btn-secondary btn-sm" onclick="refreshAdminNotificationsLog(this)">↻ Retry Loading</button>
             </td>
           </tr>
         `;
@@ -1738,13 +2669,45 @@ async function loadAdminNotificationsTable(forceFresh = false) {
         <tr>
           <td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">
             <div style="margin-bottom: 8px;">Failed to connect to notifications service.</div>
-            <button class="btn-secondary btn-sm" onclick="loadAdminNotificationsTable(true)">↻ Retry Loading</button>
+            <button class="btn-secondary btn-sm" onclick="refreshAdminNotificationsLog(this)">↻ Retry Loading</button>
           </td>
         </tr>
       `;
     }
   } finally {
     isFetchingAdminNotifs = false;
+  }
+}
+
+async function refreshAdminNotificationsLog(btn) {
+  let targetBtn = null;
+  if (btn && btn.nodeType === 1) {
+    targetBtn = btn.closest("button") || btn;
+  } else {
+    targetBtn = document.getElementById("btn-refresh-notifs");
+  }
+  const originalHtml = targetBtn ? targetBtn.innerHTML : "";
+
+  if (targetBtn) {
+    targetBtn.disabled = true;
+    targetBtn.innerHTML = `
+      <span class="btn-spinner"></span>
+      <span>Refreshing...</span>
+    `;
+  }
+
+  try {
+    cachedAdminNotifications = null;
+    await loadAdminNotificationsTable(true);
+    showToast("✓ Admin notifications log refreshed.");
+  } catch (e) {
+    console.error("Refresh log error:", e);
+    showToast("Failed to refresh notifications log.");
+  } finally {
+    if (targetBtn) {
+      targetBtn.disabled = false;
+      targetBtn.innerHTML = originalHtml;
+    }
   }
 }
 
@@ -1893,6 +2856,55 @@ async function fetchLiveStats(showNotification = false) {
       if (adminNotifEl && typeof stats.notifications !== "undefined") adminNotifEl.textContent = stats.notifications;
       if (adminNotifCounter && typeof stats.notifications !== "undefined") adminNotifCounter.textContent = stats.notifications;
 
+      // Sync Admin Pending Contribution Notification Badges & Banner (Requirement 2)
+      const pendingContrib = typeof stats.pendingContributions !== "undefined" ? stats.pendingContributions : 0;
+      const navBadge = document.getElementById("nav-admin-pending-badge");
+      const mobBadge = document.getElementById("mob-admin-pending-badge");
+      const alertBanner = document.getElementById("admin-new-contrib-alert-banner");
+      const alertSub = document.getElementById("admin-new-contrib-alert-sub");
+      const adminContribCounter = document.getElementById("admin-contrib-counter");
+
+      const currentUser = getCurrentUser();
+      const isAdminUser = currentUser && currentUser.role === "admin";
+
+      if (navBadge) {
+        if (pendingContrib > 0 && isAdminUser) {
+          navBadge.textContent = pendingContrib;
+          navBadge.style.display = "inline-flex";
+        } else {
+          navBadge.style.display = "none";
+        }
+      }
+
+      if (mobBadge) {
+        if (pendingContrib > 0 && isAdminUser) {
+          mobBadge.textContent = pendingContrib;
+          mobBadge.style.display = "inline-block";
+        } else {
+          mobBadge.style.display = "none";
+        }
+      }
+
+      if (alertBanner) {
+        if (pendingContrib > 0 && isAdminUser) {
+          alertBanner.style.display = "block";
+          if (alertSub) {
+            alertSub.textContent = `${pendingContrib} pending contribution request${pendingContrib === 1 ? "" : "s"} require administrator review.`;
+          }
+        } else {
+          alertBanner.style.display = "none";
+        }
+      }
+
+      if (adminContribCounter) {
+        if (pendingContrib > 0) {
+          adminContribCounter.textContent = `${pendingContrib} Pending`;
+          adminContribCounter.style.display = "inline-block";
+        } else {
+          adminContribCounter.style.display = "none";
+        }
+      }
+
       if (showNotification) {
         showToast("Live telemetry refreshed.");
       }
@@ -1955,3 +2967,26 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(clearAdminAutofill, 150);
   setTimeout(clearAdminAutofill, 500);
 });
+
+// Explicitly register on global window scope
+window.refreshAdminNotificationsLog = refreshAdminNotificationsLog;
+window.refreshAdminUsersDirectory = refreshAdminUsersDirectory;
+window.loadAdminNotificationsTable = loadAdminNotificationsTable;
+window.loadAdminUsersTable = loadAdminUsersTable;
+window.refreshAdminContributions = refreshAdminContributions;
+window.loadAdminContributionsTable = loadAdminContributionsTable;
+window.filterContributionsByStatus = filterContributionsByStatus;
+window.openContributionModal = openContributionModal;
+window.closeContributionModal = closeContributionModal;
+window.confirmApproveContribution = confirmApproveContribution;
+window.confirmRejectContribution = confirmRejectContribution;
+window.handleModalApproveClick = handleModalApproveClick;
+window.handleModalRejectClick = handleModalRejectClick;
+window.filterExistingResourcesDropdown = filterExistingResourcesDropdown;
+window.populateExistingResourcesDropdown = populateExistingResourcesDropdown;
+window.initUploadPage = initUploadPage;
+window.handleFileSelected = handleFileSelected;
+window.handleUploadSubmit = handleUploadSubmit;
+window.switchAdminTab = switchAdminTab;
+window.switchUploadTab = switchUploadTab;
+window.loadUserSubmittedRequests = loadUserSubmittedRequests;

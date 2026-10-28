@@ -250,14 +250,70 @@ async function initDB() {
       )
     `;
 
-    // 5. Create performance indexes for instant queries
+    // 5. Create contributions table (Requirement 5)
+    await sql`
+      CREATE TABLE IF NOT EXISTS contributions (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE SET NULL,
+        contributor_name TEXT NOT NULL,
+        contributor_email TEXT NOT NULL,
+        resource_title TEXT NOT NULL,
+        category TEXT DEFAULT 'General',
+        existing_resource_id TEXT,
+        description TEXT,
+        contribution_content TEXT,
+        file_path TEXT,
+        status TEXT DEFAULT 'Pending',
+        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reviewed_at TIMESTAMP,
+        reviewed_by TEXT,
+        admin_feedback TEXT
+      )
+    `;
+
+    // Ensure columns exist on pre-existing contributions table
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'General'`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS existing_resource_id TEXT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS description TEXT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS contribution_content TEXT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS file_path TEXT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pending'`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS reviewed_by TEXT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS admin_feedback TEXT`;
+    } catch (e) {}
+
+    // 6. Create performance indexes for instant queries
     try {
       await sql`CREATE INDEX IF NOT EXISTS idx_users_role_email ON users (role, email)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_resources_status_created ON resources (status, created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_admin_notif_created ON admin_notifications (registered_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_contributions_status_submitted ON contributions (status, submitted_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_contributions_user_id ON contributions (user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_contributions_existing_res ON contributions (existing_resource_id)`;
     } catch (idxErr) {}
 
-    console.log("✓ Neon PostgreSQL connected: `users`, `resources` & `admin_notifications` tables and performance indexes verified.");
+    console.log("✓ Neon PostgreSQL connected: `users`, `resources`, `contributions` & `admin_notifications` tables verified.");
   } catch (err) {
     console.error("Database initialization notice:", err.message);
   }

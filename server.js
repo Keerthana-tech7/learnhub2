@@ -9,6 +9,7 @@ const {
   ADMIN_EMAIL,
   sendAdminRegistrationNotification,
   sendAdminContributionNotification,
+  sendContributorStatusNotification,
   sendTestNotification,
   getEmailConfigStatus,
   setCustomTransporter,
@@ -40,10 +41,47 @@ const storage = multer.diskStorage({
     cb(null, uniqueSuffix + "-" + cleanOriginal);
   }
 });
+
+// Restrict file uploads to permitted formats, strictly PDF (Requirement 6)
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 25 * 1024 * 1024 } // 25 MB limit
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB limit
+  fileFilter: function (req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const isPdfMime = file.mimetype === "application/pdf" || file.mimetype === "application/x-pdf";
+    if (ext === ".pdf" && (isPdfMime || !file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF documents (.pdf) are permitted for contribution uploads."));
+    }
+  }
 });
+
+// Middleware to catch multer file format / size errors gracefully
+function uploadPdfMiddleware(req, res, next) {
+  upload.single("resourceFile")(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ success: false, message: "File exceeds 25MB limit. Please upload a smaller PDF." });
+      }
+      return res.status(400).json({ success: false, message: err.message });
+    } else if (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    next();
+  });
+}
+
+// Authentication enforcement middleware (Requirement 6)
+function requireAuth(req, res, next) {
+  if (req.session && req.session.user) {
+    return next();
+  }
+  return res.status(401).json({
+    success: false,
+    message: "Authentication required. Please sign in to submit a contribution."
+  });
+}
 
 // Middlewares
 app.use(express.json());
@@ -59,6 +97,7 @@ app.use((req, res, next) => {
       req.url.startsWith("/logout") ||
       req.url.startsWith("/session") ||
       req.url.startsWith("/resources") ||
+      req.url.startsWith("/contributions") ||
       req.url.startsWith("/stats") ||
       req.url.startsWith("/health") ||
       req.url.startsWith("/upload") ||
@@ -558,129 +597,276 @@ app.get("/api/resources", async (req, res) => {
   }
 });
 
-// File upload / user contribution (Requires Admin Approval before publishing)
-app.post("/api/upload", upload.single("resourceFile"), async (req, res) => {
-  const { title, subject, description } = req.body;
-  const cleanTitle = (title || "Community Study Note").trim();
-  const cleanSubject = (subject || "General").trim();
-  const cleanDesc = (description || "Shared study material.").trim();
+// ================= RESOURCE CONTRIBUTION & UPLOAD APIs =================
 
-  const contributorName = (req.session && req.session.user && req.session.user.name) || req.body.contributorName || "Student Contributor";
-  const contributorEmail = (req.session && req.session.user && req.session.user.email) || req.body.contributorEmail || "student@portal.edu";
-  const contributorId = req.session && req.session.user ? req.session.user.id : null;
-  const isAdmin = Boolean(req.session && req.session.user && req.session.user.role === "admin");
+/**
+ * Handle new study resource contribution (Requirement 1, 2, 5, 6)
+ * - Only authenticated users can submit contributions
+ * - Never trusts user-provided names or emails (uses authenticated session)
+ * - Restricts file upload strictly to PDF
+ * - Requires existing resource selection
+ * - Every contribution saved with status 'Pending'
+ * - Dispatches admin email notification with all required fields
+ */
+async function handleResourceContributionSubmission(req, res) {
+  // 1. Enforce authentication (Requirement 6)
+  if (!req.session || !req.session.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required. Please sign in to submit a coursework contribution."
+    });
+  }
 
-  // User can contribute resource only with admin's approval
-  const initialStatus = isAdmin ? "approved" : "pending";
-  const uniqueId = "res-" + Date.now();
-  let fileUrl = null;
+  // 2. Never trust user-provided names or emails when authenticated account details are available (Requirement 6)
+  const contributorName = String(req.session.user.name || "Student Contributor").trim();
+  const contributorEmail = String(req.session.user.email || "").trim();
+  const contributorId = req.session.user.id || null;
+
+  if (!contributorEmail) {
+    return res.status(401).json({
+      success: false,
+      message: "Session email verification failed. Please re-login."
+    });
+  }
+
+  // 3. Extract and sanitize inputs (Requirement 1 & 6)
+  const title = req.body.resourceTitle || req.body.title;
+  const category = req.body.category || req.body.subject || "General";
+  const existingResourceId = req.body.existingResourceId || req.body.existing_resource_id;
+  const description = req.body.description;
+  const contributionContent = req.body.contributionContent || req.body.content || "";
+
+  const cleanTitle = String(title || "").trim();
+  const cleanCategory = String(category || "General").trim();
+  const cleanExistingId = String(existingResourceId || "").trim();
+  const cleanDesc = String(description || "").trim();
+  const cleanContent = String(contributionContent || "").trim();
+
+  // 4. Validate user inputs
+  if (!cleanTitle) {
+    return res.status(400).json({
+      success: false,
+      message: "Contributed resource title is required."
+    });
+  }
+
+  if (cleanTitle.length > 200) {
+    return res.status(400).json({
+      success: false,
+      message: "Resource title must be within 200 characters."
+    });
+  }
+
+  if (!cleanExistingId) {
+    return res.status(400).json({
+      success: false,
+      message: "Please select which existing coursework resource your contribution belongs to."
+    });
+  }
+
+  if (!cleanDesc) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide a description of what you are contributing."
+    });
+  }
+
+  // Must provide contribution content or PDF file (Requirement 1)
+  if (!cleanContent && !req.file) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide contribution content (study notes/code) or attach a valid PDF file."
+    });
+  }
+
+  // 4b. Prevent duplicate submissions where appropriate (Requirement 4)
+  try {
+    const existingCheck = await sql`
+      SELECT id, resource_title, status 
+      FROM contributions 
+      WHERE (user_id = ${contributorId} OR LOWER(contributor_email) = LOWER(${contributorEmail}))
+        AND LOWER(resource_title) = LOWER(${cleanTitle})
+        AND existing_resource_id = ${cleanExistingId}
+        AND LOWER(status) IN ('pending', 'approved')
+      LIMIT 1
+    `;
+    if (existingCheck && existingCheck.length > 0) {
+      const isPending = (existingCheck[0].status || "").toLowerCase() === "pending";
+      return res.status(409).json({
+        success: false,
+        message: isPending
+          ? "Duplicate request: You already have a pending contribution request for this topic. Please wait for administrator approval."
+          : "Duplicate request: A contribution request with this title has already been approved and published."
+      });
+    }
+  } catch (dupErr) {
+    console.warn("Notice during duplicate check:", dupErr.message);
+  }
+
+  // 5. Lookup existing resource details to verify selection
+  let existingResourceTitle = "General Coursework";
+  try {
+    const matched = await sql`
+      SELECT id, title, subject FROM resources WHERE id = ${cleanExistingId} LIMIT 1
+    `;
+    if (matched && matched.length > 0) {
+      existingResourceTitle = matched[0].title;
+    }
+  } catch (lookupErr) {
+    console.warn("Notice: Existing resource lookup:", lookupErr.message);
+  }
+
+  // 6. Handle PDF file path
+  let filePath = null;
   let originalFileName = null;
-
   if (req.file) {
-    fileUrl = "/uploads/" + req.file.filename;
+    filePath = "/uploads/" + req.file.filename;
     originalFileName = req.file.originalname;
   }
 
-  const fullContent = `
-    <h3>${cleanTitle}</h3>
-    <p><strong>Subject:</strong> ${cleanSubject}</p>
-    <p><strong>Contributed By:</strong> ${contributorName} (${contributorEmail})</p>
-    <div class="note-callout">
-      <p>${cleanDesc}</p>
-    </div>
-    ${
-      fileUrl
-        ? `<p style="margin-top: 15px;"><a href="${fileUrl}" target="_blank" class="btn-primary" style="display:inline-block; padding: 10px 18px; border-radius: 8px; text-decoration: none;">⬇️ Download Attached File</a></p>`
-        : ""
-    }
-  `;
-
   try {
-    await sql`
-      INSERT INTO resources (
-        id, title, subject, reading_time, level, summary, content, file_url, uploader_name, uploader_email, uploader_id, status
+    // 7. Save contribution into `contributions` table with status "Pending" (Requirement 1, 3 & 5)
+    const inserted = await sql`
+      INSERT INTO contributions (
+        user_id,
+        contributor_name,
+        contributor_email,
+        resource_title,
+        category,
+        existing_resource_id,
+        description,
+        contribution_content,
+        file_path,
+        status,
+        submitted_at
       )
       VALUES (
-        ${uniqueId}, ${cleanTitle}, ${cleanSubject}, '5 min read', 'Student Upload', ${cleanDesc}, ${fullContent}, ${fileUrl}, ${contributorName}, ${contributorEmail}, ${contributorId}, ${initialStatus}
+        ${contributorId},
+        ${contributorName},
+        ${contributorEmail},
+        ${cleanTitle},
+        ${cleanCategory},
+        ${cleanExistingId},
+        ${cleanDesc},
+        ${cleanContent},
+        ${filePath},
+        'Pending',
+        CURRENT_TIMESTAMP
       )
+      RETURNING id, user_id, contributor_name, contributor_email, resource_title, category, existing_resource_id, description, contribution_content, file_path, status, submitted_at
     `;
 
-    // Asynchronously dispatch admin notification email with all contribution details
+    const newContribution = inserted[0];
+
+    // 8. Automatically dispatch email notification to Admin (Requirement 2)
     const portalUrl = `${req.protocol}://${req.get("host")}/#admin`;
     sendAdminContributionNotification({
       name: contributorName,
       email: contributorEmail,
       title: cleanTitle,
-      subject: cleanSubject,
+      subject: cleanCategory,
+      existingResourceTitle: existingResourceTitle,
+      existingResourceId: cleanExistingId,
       description: cleanDesc,
-      fileUrl: fileUrl,
+      content: cleanContent,
+      fileUrl: filePath,
       fileName: originalFileName,
-      time: new Date(),
-      id: uniqueId,
+      time: newContribution.submitted_at || new Date(),
+      id: newContribution.id,
       portalUrl: portalUrl,
-      status: initialStatus
+      status: "Pending Approval"
     }).catch((mailErr) => {
-      console.warn("Notice: Admin contribution notification encounter:", mailErr.message);
+      console.error("Secure Log: Admin contribution notification email dispatch encounter:", mailErr.message);
     });
 
-    invalidateAdminCache("resources");
+    invalidateAdminCache("contributions");
     invalidateAdminCache("notifications");
 
-    if (initialStatus === "pending") {
-      res.json({
-        success: true,
-        pendingApproval: true,
-        message: "Thank you for contributing! Your study material has been submitted for administrator review and will appear on the portal once approved.",
-        resource: {
-          id: uniqueId,
-          title: cleanTitle,
-          subject: cleanSubject,
-          summary: cleanDesc,
-          fileUrl: fileUrl,
-          uploader_name: contributorName,
-          uploader_email: contributorEmail,
-          status: "pending"
-        }
-      });
-    } else {
-      res.json({
-        success: true,
-        pendingApproval: false,
-        message: "Study material published successfully!",
-        resource: {
-          id: uniqueId,
-          title: cleanTitle,
-          subject: cleanSubject,
-          summary: cleanDesc,
-          fileUrl: fileUrl,
-          uploader_name: contributorName,
-          uploader_email: contributorEmail,
-          status: "approved"
-        }
-      });
-    }
-  } catch (err) {
-    console.error("Upload DB error:", err);
+    // 9. Respond with exact required confirmation message (Requirement 1)
+    res.status(201).json({
+      success: true,
+      pendingApproval: true,
+      message: "Your contribution request has been submitted successfully. Please wait for admin approval.",
+      contribution: {
+        id: newContribution.id,
+        contributor_name: contributorName,
+        contributor_email: contributorEmail,
+        resource_title: cleanTitle,
+        category: cleanCategory,
+        existing_resource_id: cleanExistingId,
+        existing_resource_title: existingResourceTitle,
+        description: cleanDesc,
+        file_path: filePath,
+        status: "Pending",
+        submitted_at: newContribution.submitted_at
+      }
+    });
+  } catch (dbErr) {
+    console.error("Contribution insertion database error:", dbErr);
     res.status(500).json({
       success: false,
       message: "Database error while saving your contribution. Please try again."
     });
   }
+}
+
+// User Contribution Endpoint: POST /api/contributions
+app.post("/api/contributions", requireAuth, uploadPdfMiddleware, handleResourceContributionSubmission);
+
+// Forwarding /api/upload to the unified contribution handler
+app.post("/api/upload", requireAuth, uploadPdfMiddleware, handleResourceContributionSubmission);
+
+// Contributor Status Tracking: GET /api/user/contributions (Requirement 4)
+app.get("/api/user/contributions", requireAuth, async (req, res) => {
+  const userId = req.session && req.session.user ? req.session.user.id : null;
+  const userEmail = (req.session && req.session.user && req.session.user.email) || "";
+
+  try {
+    const rows = await sql`
+      SELECT 
+        c.id,
+        c.user_id,
+        c.contributor_name,
+        c.contributor_email,
+        c.resource_title,
+        c.category,
+        c.existing_resource_id,
+        c.description,
+        c.contribution_content,
+        c.file_path,
+        c.status,
+        c.submitted_at,
+        c.reviewed_at,
+        c.reviewed_by,
+        c.admin_feedback,
+        COALESCE(r.title, c.existing_resource_id) AS existing_resource_title,
+        r.subject AS existing_resource_subject
+      FROM contributions c
+      LEFT JOIN resources r ON c.existing_resource_id = r.id
+      WHERE (c.user_id = ${userId} OR LOWER(c.contributor_email) = LOWER(${userEmail}))
+      ORDER BY c.submitted_at DESC
+    `;
+    res.json({ success: true, contributions: rows });
+  } catch (err) {
+    console.error("User contributions fetch error:", err.message);
+    res.status(500).json({ success: false, message: "Could not fetch your submitted requests." });
+  }
 });
 
-// Portal statistics
+// Portal statistics (optimized with live counts)
 app.get("/api/stats", async (req, res) => {
   try {
     const userCount = await sql`SELECT COUNT(*)::int AS count FROM users`;
     const resCount = await sql`SELECT COUNT(*)::int AS count FROM resources WHERE status = 'approved' OR status IS NULL`;
-    const pendingCount = await sql`SELECT COUNT(*)::int AS count FROM resources WHERE status = 'pending'`.catch(() => [{ count: 0 }]);
+    const pendingContribCount = await sql`SELECT COUNT(*)::int AS count FROM contributions WHERE LOWER(status) = 'pending'`.catch(() => [{ count: 0 }]);
     const subjectCount = await sql`SELECT COUNT(DISTINCT subject)::int AS count FROM resources WHERE status = 'approved' OR status IS NULL`;
     const notifCount = await sql`SELECT COUNT(*)::int AS count FROM admin_notifications`.catch(() => [{ count: 0 }]);
 
     res.json({
       users: (userCount && userCount[0] ? userCount[0].count : 8),
       resources: (resCount && resCount[0] ? resCount[0].count : 5),
-      pendingResources: (pendingCount && pendingCount[0] ? pendingCount[0].count : 0),
+      pendingResources: (pendingContribCount && pendingContribCount[0] ? pendingContribCount[0].count : 0),
+      pendingContributions: (pendingContribCount && pendingContribCount[0] ? pendingContribCount[0].count : 0),
       subjects: (subjectCount && subjectCount[0] ? subjectCount[0].count : 5),
       notifications: (notifCount && notifCount[0] ? notifCount[0].count : 0),
       reads: "2.4k+"
@@ -690,6 +876,7 @@ app.get("/api/stats", async (req, res) => {
       users: 8,
       resources: 5,
       pendingResources: 0,
+      pendingContributions: 0,
       subjects: 5,
       notifications: 0,
       reads: "2.4k+"
@@ -703,7 +890,8 @@ app.get("/api/stats", async (req, res) => {
 const adminCache = {
   users: { data: null, timestamp: 0 },
   notifications: { data: null, timestamp: 0 },
-  resources: { data: null, timestamp: 0 }
+  resources: { data: null, timestamp: 0 },
+  contributions: { data: null, timestamp: 0 }
 };
 const ADMIN_CACHE_TTL = 4000; // 4 seconds TTL for lightning-fast sub-second responses
 
@@ -727,6 +915,7 @@ function invalidateAdminCache(key) {
     adminCache.users.data = null;
     adminCache.notifications.data = null;
     adminCache.resources.data = null;
+    adminCache.contributions.data = null;
   }
 }
 
@@ -777,9 +966,12 @@ async function requireAdmin(req, res, next) {
 
 // Get all registered users (Admin only - optimized with caching & fallback)
 app.get("/api/admin/users", requireAdmin, async (req, res) => {
-  const cached = getCachedAdminData("users");
-  if (cached) {
-    return res.json({ success: true, users: cached, cached: true });
+  const isFresh = req.query.fresh === "true" || req.headers["cache-control"] === "no-cache";
+  if (!isFresh) {
+    const cached = getCachedAdminData("users");
+    if (cached) {
+      return res.json({ success: true, users: cached, cached: true });
+    }
   }
 
   try {
@@ -830,6 +1022,359 @@ app.delete("/api/admin/users/:id", requireAdmin, async (req, res) => {
     res.json({ success: true, message: "User account deleted." });
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to delete user." });
+  }
+});
+
+// ================= ADMIN CONTRIBUTION REQUESTS APIS (Requirement 3, 4, 6) =================
+
+// Get all contribution requests with status filtering & caching (Admin only)
+app.get("/api/admin/contributions", requireAdmin, async (req, res) => {
+  const isFresh = req.query.fresh === "true" || req.headers["cache-control"] === "no-cache";
+  const statusFilter = (req.query.status || "all").trim().toLowerCase();
+
+  if (!isFresh && statusFilter === "all") {
+    const cached = getCachedAdminData("contributions");
+    if (cached) {
+      return res.json({ success: true, contributions: cached, cached: true });
+    }
+  }
+
+  try {
+    let rows;
+    if (statusFilter && statusFilter !== "all") {
+      rows = await sql`
+        SELECT 
+          c.id,
+          c.user_id,
+          c.contributor_name,
+          c.contributor_email,
+          c.resource_title,
+          c.category,
+          c.existing_resource_id,
+          c.description,
+          c.contribution_content,
+          c.file_path,
+          c.status,
+          c.submitted_at,
+          c.reviewed_at,
+          c.reviewed_by,
+          c.admin_feedback,
+          COALESCE(r.title, c.existing_resource_id) AS existing_resource_title,
+          r.subject AS existing_resource_subject
+        FROM contributions c
+        LEFT JOIN resources r ON c.existing_resource_id = r.id
+        WHERE LOWER(c.status) = LOWER(${statusFilter})
+        ORDER BY c.submitted_at DESC
+      `;
+    } else {
+      rows = await sql`
+        SELECT 
+          c.id,
+          c.user_id,
+          c.contributor_name,
+          c.contributor_email,
+          c.resource_title,
+          c.category,
+          c.existing_resource_id,
+          c.description,
+          c.contribution_content,
+          c.file_path,
+          c.status,
+          c.submitted_at,
+          c.reviewed_at,
+          c.reviewed_by,
+          c.admin_feedback,
+          COALESCE(r.title, c.existing_resource_id) AS existing_resource_title,
+          r.subject AS existing_resource_subject
+        FROM contributions c
+        LEFT JOIN resources r ON c.existing_resource_id = r.id
+        ORDER BY 
+          CASE 
+            WHEN LOWER(c.status) = 'pending' THEN 0 
+            WHEN LOWER(c.status) = 'approved' THEN 1 
+            ELSE 2 
+          END,
+          c.submitted_at DESC
+      `;
+    }
+
+    if (statusFilter === "all") {
+      setCachedAdminData("contributions", rows);
+    }
+
+    res.json({ success: true, contributions: rows });
+  } catch (err) {
+    console.error("Admin contributions fetch error:", err.message);
+    if (adminCache.contributions.data) {
+      return res.json({ success: true, contributions: adminCache.contributions.data, cached: true });
+    }
+    res.status(500).json({ success: false, message: "Could not fetch contribution requests." });
+  }
+});
+
+// Get a single contribution request details (Admin only)
+app.get("/api/admin/contributions/:id", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const rows = await sql`
+      SELECT 
+        c.*,
+        COALESCE(r.title, c.existing_resource_id) AS existing_resource_title,
+        r.subject AS existing_resource_subject
+      FROM contributions c
+      LEFT JOIN resources r ON c.existing_resource_id = r.id
+      WHERE c.id = ${id}
+      LIMIT 1
+    `;
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Contribution request not found." });
+    }
+    res.json({ success: true, contribution: rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to load contribution details." });
+  }
+});
+
+// Approve a contribution request (Admin only - Requirement 3 & 4)
+app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const adminFeedback = req.body.adminFeedback ? String(req.body.adminFeedback).trim() : null;
+  const reviewerName = (req.session && req.session.user && req.session.user.name) || "System Administrator";
+  const reviewerEmail = (req.session && req.session.user && req.session.user.email) || ADMIN_EMAIL;
+  const reviewedBy = `${reviewerName} (${reviewerEmail})`;
+
+  try {
+    const existing = await sql`
+      SELECT c.*, COALESCE(r.title, c.existing_resource_id) AS existing_resource_title
+      FROM contributions c
+      LEFT JOIN resources r ON c.existing_resource_id = r.id
+      WHERE c.id = ${id}
+      LIMIT 1
+    `;
+
+    if (!existing || existing.length === 0) {
+      return res.status(404).json({ success: false, message: "Contribution request not found." });
+    }
+
+    const contrib = existing[0];
+
+    // 1. Update contribution status to Approved
+    const updated = await sql`
+      UPDATE contributions 
+      SET 
+        status = 'Approved',
+        reviewed_at = CURRENT_TIMESTAMP,
+        reviewed_by = ${reviewedBy},
+        admin_feedback = ${adminFeedback}
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    // 2. Publish/apply to resources table so students can access it
+    // "Only approved contributions can be published or applied to existing resources.
+    //  Pending and rejected contributions must never appear as published resources."
+    const resUniqueId = `contrib-${contrib.id}`;
+    const publishedContent = `
+      <div class="community-contribution-header" style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <span style="display: inline-block; background: #059669; color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 9999px;">
+            ✓ Approved Peer Contribution
+          </span>
+          <span style="font-size: 12.5px; color: #065f46;">
+            Contributed to coursework: <strong>${contrib.existing_resource_title || contrib.existing_resource_id}</strong>
+          </span>
+        </div>
+      </div>
+      <h3>${contrib.resource_title}</h3>
+      <p><strong>Discipline / Category:</strong> ${contrib.category || 'General'}</p>
+      <p><strong>Contributed By:</strong> ${contrib.contributor_name} (${contrib.contributor_email})</p>
+      <div class="note-callout">
+        <strong>Overview &amp; Notes:</strong>
+        <p>${contrib.description}</p>
+      </div>
+      ${
+        contrib.contribution_content
+          ? `
+        <div style="margin-top: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; white-space: pre-wrap; line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #1e293b;">
+          ${contrib.contribution_content}
+        </div>
+      `
+          : ""
+      }
+      ${
+        contrib.file_path
+          ? `
+        <div style="margin-top: 18px;">
+          <a href="${contrib.file_path}" target="_blank" class="btn-primary" style="display: inline-block; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+            ⬇️ Download Approved PDF Material
+          </a>
+        </div>
+      `
+          : ""
+      }
+    `;
+
+    await sql`
+      INSERT INTO resources (
+        id, title, subject, reading_time, level, summary, content, file_url, uploader_name, uploader_email, uploader_id, status, created_at
+      ) VALUES (
+        ${resUniqueId},
+        ${contrib.resource_title},
+        ${contrib.category || 'General'},
+        '5 min read',
+        'Peer Contribution',
+        ${contrib.description},
+        ${publishedContent},
+        ${contrib.file_path},
+        ${contrib.contributor_name},
+        ${contrib.contributor_email},
+        ${contrib.user_id},
+        'approved',
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (id) DO UPDATE SET 
+        status = 'approved',
+        title = ${contrib.resource_title},
+        subject = ${contrib.category || 'General'},
+        summary = ${contrib.description},
+        content = ${publishedContent},
+        file_url = ${contrib.file_path}
+    `;
+
+    // 3. Notify contributor by email (Requirement 3)
+    const portalUrl = `${req.protocol}://${req.get("host")}/#resources`;
+    sendContributorStatusNotification({
+      contributorName: contrib.contributor_name,
+      contributorEmail: contrib.contributor_email,
+      resourceTitle: contrib.resource_title,
+      existingResourceTitle: contrib.existing_resource_title,
+      status: "Approved",
+      reviewedAt: new Date(),
+      reviewedBy: reviewerName,
+      adminFeedback: adminFeedback,
+      portalUrl: portalUrl
+    }).catch((notifErr) => {
+      console.warn("Notice: Contributor status email delivery notice:", notifErr.message);
+    });
+
+    invalidateAdminCache();
+
+    res.json({
+      success: true,
+      message: `✓ Contribution "${contrib.resource_title}" approved and published to portal library! Contributor notified.`,
+      contribution: updated[0]
+    });
+  } catch (err) {
+    console.error("Admin approve contribution error:", err);
+    res.status(500).json({ success: false, message: "Failed to approve contribution." });
+  }
+});
+
+// Reject a contribution request (Admin only - Requirement 3 & 4)
+app.post("/api/admin/contributions/:id/reject", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const adminFeedback = req.body.adminFeedback ? String(req.body.adminFeedback).trim() : "Contribution declined by administrator.";
+  const reviewerName = (req.session && req.session.user && req.session.user.name) || "System Administrator";
+  const reviewerEmail = (req.session && req.session.user && req.session.user.email) || ADMIN_EMAIL;
+  const reviewedBy = `${reviewerName} (${reviewerEmail})`;
+
+  try {
+    const existing = await sql`
+      SELECT c.*, COALESCE(r.title, c.existing_resource_id) AS existing_resource_title
+      FROM contributions c
+      LEFT JOIN resources r ON c.existing_resource_id = r.id
+      WHERE c.id = ${id}
+      LIMIT 1
+    `;
+
+    if (!existing || existing.length === 0) {
+      return res.status(404).json({ success: false, message: "Contribution request not found." });
+    }
+
+    const contrib = existing[0];
+
+    // 1. Update contribution status to Rejected
+    const updated = await sql`
+      UPDATE contributions 
+      SET 
+        status = 'Rejected',
+        reviewed_at = CURRENT_TIMESTAMP,
+        reviewed_by = ${reviewedBy},
+        admin_feedback = ${adminFeedback}
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    // 2. Ensure it never appears in published resources (Requirement 3)
+    const resUniqueId = `contrib-${contrib.id}`;
+    await sql`DELETE FROM resources WHERE id = ${resUniqueId}`.catch(() => {});
+
+    // 3. Notify contributor by email (Requirement 3)
+    const portalUrl = `${req.protocol}://${req.get("host")}/#upload`;
+    sendContributorStatusNotification({
+      contributorName: contrib.contributor_name,
+      contributorEmail: contrib.contributor_email,
+      resourceTitle: contrib.resource_title,
+      existingResourceTitle: contrib.existing_resource_title,
+      status: "Rejected",
+      reviewedAt: new Date(),
+      reviewedBy: reviewerName,
+      adminFeedback: adminFeedback,
+      portalUrl: portalUrl
+    }).catch((notifErr) => {
+      console.warn("Notice: Contributor status email delivery notice:", notifErr.message);
+    });
+
+    invalidateAdminCache();
+
+    res.json({
+      success: true,
+      message: `Contribution "${contrib.resource_title}" was rejected and will not appear on the portal. Contributor notified.`,
+      contribution: updated[0]
+    });
+  } catch (err) {
+    console.error("Admin reject contribution error:", err);
+    res.status(500).json({ success: false, message: "Failed to reject contribution." });
+  }
+});
+
+// Delete contribution request (Admin only)
+app.delete("/api/admin/contributions/:id", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const resUniqueId = `contrib-${id}`;
+    await sql`DELETE FROM resources WHERE id = ${resUniqueId}`.catch(() => {});
+    await sql`DELETE FROM contributions WHERE id = ${id}`;
+    invalidateAdminCache();
+    res.json({ success: true, message: "Contribution record removed successfully." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to delete contribution." });
+  }
+});
+
+// Public / student endpoint to get approved contributions for a resource
+app.get("/api/contributions/approved", async (req, res) => {
+  const existingResourceId = req.query.resourceId;
+  try {
+    let rows;
+    if (existingResourceId) {
+      rows = await sql`
+        SELECT id, contributor_name, resource_title, category, existing_resource_id, description, file_path, submitted_at
+        FROM contributions
+        WHERE status = 'Approved' AND existing_resource_id = ${existingResourceId}
+        ORDER BY submitted_at DESC
+      `;
+    } else {
+      rows = await sql`
+        SELECT id, contributor_name, resource_title, category, existing_resource_id, description, file_path, submitted_at
+        FROM contributions
+        WHERE status = 'Approved'
+        ORDER BY submitted_at DESC
+      `;
+    }
+    res.json({ success: true, contributions: rows });
+  } catch (err) {
+    res.json({ success: true, contributions: [] });
   }
 });
 
@@ -925,9 +1470,12 @@ app.delete("/api/admin/resources/:id", requireAdmin, async (req, res) => {
 
 // Get admin registration & contribution notifications log (Admin only - optimized with caching & fallback)
 app.get("/api/admin/notifications", requireAdmin, async (req, res) => {
-  const cached = getCachedAdminData("notifications");
-  if (cached) {
-    return res.json({ success: true, notifications: cached, cached: true });
+  const isFresh = req.query.fresh === "true" || req.headers["cache-control"] === "no-cache";
+  if (!isFresh) {
+    const cached = getCachedAdminData("notifications");
+    if (cached) {
+      return res.json({ success: true, notifications: cached, cached: true });
+    }
   }
 
   try {

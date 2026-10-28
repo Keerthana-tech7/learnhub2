@@ -457,12 +457,29 @@ Portal Admin Console: ${portalUrl || "http://localhost:3000/#admin"}
 }
 
 /**
+/**
  * Generate responsive HTML template for admin resource contribution alert
  */
-function generateContributionAlertHTML({ name, email, title, subject, description, fileUrl, fileName, timeFormatted, id, portalUrl, status }) {
+function generateContributionAlertHTML({
+  name,
+  email,
+  title,
+  subject,
+  existingResourceTitle,
+  existingResourceId,
+  description,
+  content,
+  fileUrl,
+  fileName,
+  timeFormatted,
+  id,
+  portalUrl,
+  status
+}) {
   const targetPortalUrl = portalUrl || "http://localhost:3000/#admin";
-  const displayStatus = (status || "pending").toUpperCase();
-  const isPending = displayStatus === "PENDING";
+  const displayStatus = (status || "Pending Approval").toUpperCase();
+  const isPending = displayStatus.includes("PENDING");
+  const existingResourceDisplay = existingResourceTitle || existingResourceId || "General Repository";
 
   return `
 <!DOCTYPE html>
@@ -501,7 +518,7 @@ function generateContributionAlertHTML({ name, email, title, subject, descriptio
                 📝 New Study Material Contributed Awaiting Approval
               </h2>
               <p style="margin: 0 0 20px 0; color: #475569; font-size: 14px;">
-                Hello <strong>Portal Administrator</strong>, a student has contributed new study material to the portal repository. In accordance with portal moderation rules, this contribution is <strong>held in pending status</strong> and will only appear to students once you approve it.
+                Hello <strong>Portal Administrator</strong>, a registered student has contributed new study material to the portal repository. In accordance with portal moderation policy, this contribution is <strong>held with status "Pending Approval"</strong> and will only appear to students once you approve it.
               </p>
 
               <!-- Contribution Details Card -->
@@ -509,7 +526,7 @@ function generateContributionAlertHTML({ name, email, title, subject, descriptio
                 <tr>
                   <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
                     <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">
-                      👤 Contributor's Name
+                      👤 Contributor's Full Name
                     </span>
                     <strong style="display: block; font-size: 15px; color: #0f172a; margin-top: 2px;">
                       ${escapeHtml(name)}
@@ -534,22 +551,24 @@ function generateContributionAlertHTML({ name, email, title, subject, descriptio
                     <strong style="display: block; font-size: 16px; color: #0f172a; margin-top: 2px;">
                       ${escapeHtml(title)}
                     </strong>
+                    ${subject ? `<span style="display: inline-block; background-color: #dbeafe; color: #1e40af; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-top: 4px;">${escapeHtml(subject)}</span>` : ""}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
                     <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">
-                      🏷️ In Which Resource / Subject Discipline
+                      🎯 Existing Resource Being Contributed To
                     </span>
-                    <span style="display: inline-block; background-color: #dbeafe; color: #1e40af; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 4px; margin-top: 4px;">
-                      ${escapeHtml(subject)}
-                    </span>
+                    <strong style="display: block; font-size: 14.5px; color: #1e3a8a; margin-top: 2px;">
+                      ${escapeHtml(existingResourceDisplay)}
+                    </strong>
+                    ${existingResourceId ? `<span style="font-family: monospace; font-size: 11px; color: #64748b;">(Target ID: ${escapeHtml(existingResourceId)})</span>` : ""}
                   </td>
                 </tr>
                 <tr>
                   <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
                     <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">
-                      📄 What They Contributed (Description / Overview)
+                      📄 Description of Contribution
                     </span>
                     <div style="margin: 6px 0 0 0; font-size: 13.5px; color: #334155; line-height: 1.5; background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
                       ${escapeHtml(description)}
@@ -557,16 +576,29 @@ function generateContributionAlertHTML({ name, email, title, subject, descriptio
                   </td>
                 </tr>
                 ${
+                  content
+                    ? `
+                <tr>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
+                    <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">
+                      📝 Contribution Content / Notes
+                    </span>
+                    <div style="margin: 6px 0 0 0; font-size: 13px; color: #1e293b; line-height: 1.55; background: #f1f5f9; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1; max-height: 250px; overflow-y: auto; white-space: pre-wrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;">${escapeHtml(content)}</div>
+                  </td>
+                </tr>`
+                    : ""
+                }
+                ${
                   fileUrl
                     ? `
                 <tr>
                   <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
                     <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">
-                      📎 Attached Resource File
+                      📎 Uploaded File Link
                     </span>
                     <div style="margin-top: 6px;">
-                      <a href="${escapeHtml(fileUrl.startsWith("http") ? fileUrl : (portalUrl ? new URL(fileUrl, portalUrl).href : fileUrl))}" target="_blank" style="display: inline-block; font-size: 13px; color: #2563eb; font-weight: 600; text-decoration: underline;">
-                        ⬇️ Download Attached File (${escapeHtml(fileName || "Download Attachment")})
+                      <a href="${escapeHtml(fileUrl.startsWith("http") ? fileUrl : (portalUrl ? new URL(fileUrl, portalUrl).href : fileUrl))}" target="_blank" style="display: inline-block; font-size: 13.5px; color: #2563eb; font-weight: 700; text-decoration: underline; background: #eff6ff; padding: 8px 12px; border-radius: 6px; border: 1px solid #bfdbfe;">
+                        ⬇️ View / Download Attached PDF (${escapeHtml(fileName || "Document.pdf")})
                       </a>
                     </div>
                   </td>
@@ -576,7 +608,7 @@ function generateContributionAlertHTML({ name, email, title, subject, descriptio
                 <tr>
                   <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
                     <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">
-                      🕒 Contribution Date & Time
+                      🕒 Submission Date & Exact Time (with Timezone)
                     </span>
                     <strong style="display: block; font-size: 14px; color: #0f172a; margin-top: 2px;">
                       ${escapeHtml(timeFormatted.localFormatted)}
@@ -589,10 +621,10 @@ function generateContributionAlertHTML({ name, email, title, subject, descriptio
                 <tr>
                   <td style="padding: 14px 18px;">
                     <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">
-                      🛡️ Current Approval Status
+                      🛡️ Approval Status
                     </span>
-                    <span style="display: inline-block; background-color: ${isPending ? "#fef3c7" : "#ecfdf5"}; color: ${isPending ? "#b45309" : "#059669"}; border: 1px solid ${isPending ? "#fde68a" : "#a7f3d0"}; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 9999px; margin-top: 4px; text-transform: uppercase;">
-                      ${isPending ? "⏳ Pending Administrator Approval" : "✓ Approved"}
+                    <span style="display: inline-block; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 9999px; margin-top: 4px; text-transform: uppercase;">
+                      ⏳ Pending Approval
                     </span>
                   </td>
                 </tr>
@@ -603,14 +635,14 @@ function generateContributionAlertHTML({ name, email, title, subject, descriptio
                 <tr>
                   <td align="center">
                     <a href="${escapeHtml(targetPortalUrl)}" target="_blank" style="display: inline-block; background: #059669; color: #ffffff; font-weight: 700; font-size: 14px; text-decoration: none; padding: 13px 30px; border-radius: 6px; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.35);">
-                      Review &amp; Approve Resource in Admin Console →
+                      Review &amp; Approve Contribution in Admin Dashboard →
                     </a>
                   </td>
                 </tr>
               </table>
 
               <p style="margin: 0; font-size: 12.5px; color: #64748b; text-align: center;">
-                Click above to instantly review, approve, or reject this contribution from your Master Admin Console.
+                Click above to open the Admin Dashboard and review, approve, or reject this contribution.
               </p>
             </td>
           </tr>
@@ -643,42 +675,62 @@ function generateContributionAlertHTML({ name, email, title, subject, descriptio
  * @param {string} params.name - Contributor's full name
  * @param {string} params.email - Contributor's email
  * @param {string} params.title - Resource title
- * @param {string} params.subject - Resource subject/discipline
+ * @param {string} [params.subject] - Category / discipline
+ * @param {string} [params.existingResourceTitle] - Title of existing resource contributed to
+ * @param {string} [params.existingResourceId] - ID of existing resource
  * @param {string} params.description - What they contributed (summary/notes)
+ * @param {string} [params.content] - Text content of contribution
  * @param {string} [params.fileUrl] - Uploaded file URL if any
  * @param {string} [params.fileName] - Uploaded original file name
  * @param {Date|string} [params.time] - Timestamp of contribution
- * @param {string} [params.id] - Resource unique ID
+ * @param {string|number} [params.id] - Contribution unique ID
  * @param {string} [params.portalUrl] - Base portal URL
- * @param {string} [params.status] - Initial status (e.g., 'pending')
+ * @param {string} [params.status] - Initial status ('Pending Approval')
  */
-async function sendAdminContributionNotification({ name, email, title, subject, description, fileUrl, fileName, time, id, portalUrl, status }) {
+async function sendAdminContributionNotification({
+  name,
+  email,
+  title,
+  subject,
+  existingResourceTitle,
+  existingResourceId,
+  description,
+  content,
+  fileUrl,
+  fileName,
+  time,
+  id,
+  portalUrl,
+  status
+}) {
   const timeFormatted = formatRegistrationTime(time);
   const cleanName = String(name || "Student Contributor").trim();
   const cleanEmail = String(email || "student@portal.edu").trim();
   const cleanTitle = String(title || "Untitled Study Note").trim();
   const cleanSubject = String(subject || "General").trim();
+  const cleanExistingRes = String(existingResourceTitle || existingResourceId || "General Repository").trim();
   const cleanDesc = String(description || "Shared study material.").trim();
-  const approvalStatus = status || "pending";
+  const approvalStatus = status || "Pending Approval";
 
-  const emailSubject = `🔔 New Resource Contributed (Approval Required): "${cleanTitle}" by ${cleanName}`;
+  const emailSubject = `🔔 New Resource Contribution (Pending Approval): "${cleanTitle}" by ${cleanName}`;
   const textContent = `
 [STUDENT STUDY RESOURCE PORTAL - RESOURCE CONTRIBUTION ALERT]
 ============================================================
-A student has contributed new study material awaiting your approval.
+A registered user has submitted a contribution awaiting your approval.
 
-• Contributor Name:        ${cleanName}
-• Contributor Email:       ${cleanEmail}
-• Contributed Resource:    ${cleanTitle}
-• In Which Subject:        ${cleanSubject}
-• What was Contributed:    ${cleanDesc}
-${fileUrl ? `• Attached File:           ${fileName || "File"} (${fileUrl})\n` : ""}• Submission Date & Time:  ${timeFormatted.localFormatted}
-• ISO Timestamp:           ${timeFormatted.isoFormatted}
-• Moderation Status:       ${approvalStatus.toUpperCase()} (Pending Admin Approval)
-${id ? `• Resource ID:             ${id}\n` : ""}
+• Contributor's Full Name:       ${cleanName}
+• Contributor's Email Address:   ${cleanEmail}
+• Contributed Resource Title:    ${cleanTitle}
+• Existing Resource Contributed: ${cleanExistingRes} (ID: ${existingResourceId || "N/A"})
+• Category / Subject:            ${cleanSubject}
+• Description of Contribution:   ${cleanDesc}
+${content ? `• Contribution Content Notes:   ${content.substring(0, 300)}${content.length > 300 ? "..." : ""}\n` : ""}${fileUrl ? `• Uploaded File Link:          ${fileName || "PDF File"} (${fileUrl})\n` : ""}• Submission Date & Exact Time:  ${timeFormatted.localFormatted}
+• ISO Timestamp:                 ${timeFormatted.isoFormatted}
+• Approval Status:               Pending Approval
+${id ? `• Contribution Record ID:        #${id}\n` : ""}
 ============================================================
-Recipient Administrator:   ${ADMIN_EMAIL}
-Review & Approve in Admin: ${portalUrl || "http://localhost:3000/#admin"}
+Admin Mailbox Recipient:         ${ADMIN_EMAIL}
+Admin Review & Approval Console: ${portalUrl || "http://localhost:3000/#admin"}
 ============================================================
 `.trim();
 
@@ -687,7 +739,10 @@ Review & Approve in Admin: ${portalUrl || "http://localhost:3000/#admin"}
     email: cleanEmail,
     title: cleanTitle,
     subject: cleanSubject,
+    existingResourceTitle: cleanExistingRes,
+    existingResourceId,
     description: cleanDesc,
+    content,
     fileUrl,
     fileName,
     timeFormatted,
@@ -713,14 +768,19 @@ Review & Approve in Admin: ${portalUrl || "http://localhost:3000/#admin"}
         ${timeFormatted.dateObj},
         'pending',
         ${JSON.stringify({
-          resourceId: id || null,
+          message: "A new resource contribution request has been received.",
+          notificationMessage: "A new resource contribution request has been received.",
+          contributionId: id || null,
           title: cleanTitle,
-          subject: cleanSubject,
-          summary: cleanDesc,
+          category: cleanSubject,
+          existingResource: cleanExistingRes,
+          existingResourceId: existingResourceId || null,
+          description: cleanDesc,
           fileUrl: fileUrl || null,
           fileName: fileName || null,
           approvalStatus: approvalStatus,
-          isoTime: timeFormatted.isoFormatted
+          isoTime: timeFormatted.isoFormatted,
+          timezone: timeFormatted.localFormatted
         })}
       )
       RETURNING id
@@ -752,17 +812,16 @@ Review & Approve in Admin: ${portalUrl || "http://localhost:3000/#admin"}
       console.log(`  To: ${ADMIN_EMAIL}`);
       console.log(`  Subject: ${emailSubject}`);
       console.log(`  Contributor: ${cleanName} <${cleanEmail}>`);
-      console.log(`  Resource: ${cleanTitle} [${cleanSubject}]`);
+      console.log(`  Resource: ${cleanTitle}`);
+      console.log(`  Existing Resource: ${cleanExistingRes}`);
       console.log(`  Time: ${timeFormatted.fullDisplay}`);
-      console.log(`  Status: PENDING ADMIN APPROVAL\n`);
+      console.log(`  Status: PENDING APPROVAL\n`);
 
       if (notificationId) {
         await sql`UPDATE admin_notifications SET status = 'delivered', details = ${JSON.stringify({
-          resourceId: id || null,
+          contributionId: id || null,
           title: cleanTitle,
-          subject: cleanSubject,
-          summary: cleanDesc,
-          fileUrl: fileUrl || null,
+          existingResource: cleanExistingRes,
           messageId: info.messageId,
           time: timeFormatted.isoFormatted
         })} WHERE id = ${notificationId}`.catch(() => {});
@@ -798,26 +857,29 @@ Review & Approve in Admin: ${portalUrl || "http://localhost:3000/#admin"}
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║               🔔 NEW RESOURCE CONTRIBUTION PENDING APPROVAL                  ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Recipient (Admin Email) : ${ADMIN_EMAIL.padEnd(50)} ║
-║ Contributor Name        : ${cleanName.padEnd(50)} ║
-║ Contributor Email       : ${cleanEmail.padEnd(50)} ║
-║ Contributed Resource    : ${cleanTitle.substring(0, 50).padEnd(50)} ║
-║ In Which Subject        : ${cleanSubject.substring(0, 50).padEnd(50)} ║
-║ What Was Contributed    : ${cleanDesc.substring(0, 50).padEnd(50)} ║
-║ Attached File           : ${(fileUrl || "None").substring(0, 50).padEnd(50)} ║
-║ Contribution Time       : ${timeFormatted.localFormatted.padEnd(50)} ║
-║ Approval Status         : PENDING ADMIN APPROVAL (Review in Admin Console)   ║
+║ Recipient (Admin Email)   : ${ADMIN_EMAIL.padEnd(48)} ║
+║ Contributor Full Name     : ${cleanName.padEnd(48)} ║
+║ Contributor Email Address : ${cleanEmail.padEnd(48)} ║
+║ Contributed Resource Title: ${cleanTitle.substring(0, 48).padEnd(48)} ║
+║ Existing Resource Target  : ${cleanExistingRes.substring(0, 48).padEnd(48)} ║
+║ Category / Subject        : ${cleanSubject.substring(0, 48).padEnd(48)} ║
+║ Description / Overview    : ${cleanDesc.substring(0, 48).padEnd(48)} ║
+║ Uploaded File Link        : ${(fileUrl || "None").substring(0, 48).padEnd(48)} ║
+║ Submission Date & Time    : ${timeFormatted.localFormatted.padEnd(48)} ║
+║ Approval Status           : PENDING APPROVAL (Review in Admin Dashboard)     ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
     `);
 
     if (notificationId) {
       await sql`UPDATE admin_notifications SET status = 'logged', details = ${JSON.stringify({
-        resourceId: id || null,
+        contributionId: id || null,
         title: cleanTitle,
-        subject: cleanSubject,
+        category: cleanSubject,
+        existingResource: cleanExistingRes,
+        existingResourceId: existingResourceId || null,
         summary: cleanDesc,
         fileUrl: fileUrl || null,
-        approvalStatus: approvalStatus,
+        approvalStatus: "Pending Approval",
         note: "Contribution logged. Provide SMTP_USER & SMTP_PASS in .env for external inbox delivery.",
         time: timeFormatted.isoFormatted
       })} WHERE id = ${notificationId}`.catch(() => {});
@@ -828,6 +890,280 @@ Review & Approve in Admin: ${portalUrl || "http://localhost:3000/#admin"}
       mode: "preview_logged",
       recipient: ADMIN_EMAIL,
       contributor: { name: cleanName, email: cleanEmail, time: timeFormatted.fullDisplay }
+    };
+  }
+}
+
+/**
+ * Generate responsive HTML template for contributor status notification (Approved or Rejected)
+ */
+function generateContributorStatusHTML({
+  contributorName,
+  resourceTitle,
+  existingResourceTitle,
+  status,
+  reviewedAtFormatted,
+  reviewedBy,
+  adminFeedback,
+  portalUrl
+}) {
+  const isApproved = String(status || "").toLowerCase() === "approved";
+  const targetPortalUrl = portalUrl || "http://localhost:3000/#resources";
+  const statusColor = isApproved ? "#059669" : "#dc2626";
+  const statusBg = isApproved ? "#ecfdf5" : "#fef2f2";
+  const statusBorder = isApproved ? "#a7f3d0" : "#fecaca";
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resource Contribution Status Update</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 30px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); border: 1px solid #e2e8f0;">
+          
+          <!-- Banner -->
+          <tr>
+            <td style="background: ${isApproved ? "linear-gradient(135deg, #064e3b 0%, #047857 100%)" : "linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)"}; padding: 30px; text-align: left;">
+              <span style="display: inline-block; background-color: rgba(255, 255, 255, 0.2); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; padding: 4px 10px; border-radius: 9999px; margin-bottom: 12px;">
+                CONTRIBUTION STATUS UPDATE
+              </span>
+              <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700;">
+                ${isApproved ? "🎉 Contribution Approved &amp; Published" : "Notice on Contribution Review"}
+              </h1>
+              <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.85); font-size: 13px;">
+                LearnHub Student Study Resource Portal
+              </p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px 30px 24px 30px;">
+              <p style="margin: 0 0 16px 0; font-size: 15px; color: #0f172a;">
+                Hello <strong>${escapeHtml(contributorName)}</strong>,
+              </p>
+              <p style="margin: 0 0 20px 0; color: #475569; font-size: 14px;">
+                ${
+                  isApproved
+                    ? `Great news! Your study resource contribution has been reviewed and <strong>approved</strong> by the administrator. It is now published live on the portal for all students to benefit from.`
+                    : `Thank you for contributing to the portal. Your study resource contribution has been reviewed by the administrator and has been marked as <strong>declined</strong>.`
+                }
+              </p>
+
+              <!-- Details Box -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
+                    <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b;">
+                      Contributed Resource Title
+                    </span>
+                    <strong style="display: block; font-size: 15px; color: #0f172a; margin-top: 2px;">
+                      ${escapeHtml(resourceTitle)}
+                    </strong>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
+                    <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b;">
+                      Target Coursework Resource
+                    </span>
+                    <div style="font-size: 14px; color: #1e3a8a; font-weight: 600; margin-top: 2px;">
+                      ${escapeHtml(existingResourceTitle || "Core Syllabus Library")}
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
+                    <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b;">
+                      Review Status
+                    </span>
+                    <span style="display: inline-block; background-color: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusBorder}; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 9999px; margin-top: 4px; text-transform: uppercase;">
+                      ${isApproved ? "✓ Approved &amp; Published" : "✕ Rejected"}
+                    </span>
+                  </td>
+                </tr>
+                ${
+                  reviewedAtFormatted
+                    ? `
+                <tr>
+                  <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0;">
+                    <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b;">
+                      Review Date &amp; Time
+                    </span>
+                    <div style="font-size: 13.5px; color: #0f172a; margin-top: 2px;">
+                      ${escapeHtml(reviewedAtFormatted.localFormatted)}
+                    </div>
+                  </td>
+                </tr>`
+                    : ""
+                }
+                ${
+                  adminFeedback
+                    ? `
+                <tr>
+                  <td style="padding: 14px 18px;">
+                    <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b;">
+                      Administrator Feedback
+                    </span>
+                    <div style="margin-top: 6px; font-size: 13.5px; color: #334155; background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; line-height: 1.5;">
+                      ${escapeHtml(adminFeedback)}
+                    </div>
+                  </td>
+                </tr>`
+                    : ""
+                }
+              </table>
+
+              <!-- Action Link -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
+                <tr>
+                  <td align="center">
+                    <a href="${escapeHtml(targetPortalUrl)}" target="_blank" style="display: inline-block; background: ${isApproved ? "#059669" : "#2563eb"}; color: #ffffff; font-weight: 700; font-size: 14px; text-decoration: none; padding: 12px 28px; border-radius: 6px;">
+                      ${isApproved ? "View Published Study Material on Portal →" : "Visit Portal Dashboard →"}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 30px; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #94a3b8;">
+                Student Study Resource Portal © 2026. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Dispatch notification email to Contributor when their submission is approved or rejected
+ */
+async function sendContributorStatusNotification({
+  contributorName,
+  contributorEmail,
+  resourceTitle,
+  existingResourceTitle,
+  status,
+  reviewedAt,
+  reviewedBy,
+  adminFeedback,
+  portalUrl
+}) {
+  const isApproved = String(status || "").toLowerCase() === "approved";
+  const cleanName = String(contributorName || "Contributor").trim();
+  const cleanEmail = String(contributorEmail || "").trim();
+  const cleanTitle = String(resourceTitle || "Study Material").trim();
+  const cleanExisting = String(existingResourceTitle || "Core Syllabus Library").trim();
+  const timeFormatted = formatRegistrationTime(reviewedAt || new Date());
+
+  if (!cleanEmail || !cleanEmail.includes("@")) {
+    console.warn("Notice: Contributor email missing or invalid, skipping contributor status notification.");
+    return { success: false, reason: "invalid_email" };
+  }
+
+  const emailSubject = isApproved
+    ? `🎉 Your Study Resource Contribution "${cleanTitle}" Has Been Approved!`
+    : `Notice Regarding Your Study Resource Contribution: "${cleanTitle}"`;
+
+  const textContent = `
+[STUDENT STUDY RESOURCE PORTAL - CONTRIBUTION STATUS UPDATE]
+============================================================
+Hello ${cleanName},
+
+Your resource contribution "${cleanTitle}" for "${cleanExisting}" has been reviewed by the administrator.
+
+• Contributed Title:     ${cleanTitle}
+• Existing Resource:     ${cleanExisting}
+• Decision / Status:     ${isApproved ? "APPROVED & PUBLISHED" : "REJECTED"}
+• Reviewed At:           ${timeFormatted.localFormatted}
+${reviewedBy ? `• Reviewed By:           ${reviewedBy}\n` : ""}${adminFeedback ? `• Administrator Note:    ${adminFeedback}\n` : ""}
+============================================================
+${isApproved ? "Your material is now available to all students in the study portal library!" : "You may revise your notes and submit again if desired."}
+Portal Link: ${portalUrl || "http://localhost:3000/#resources"}
+============================================================
+`.trim();
+
+  const htmlContent = generateContributorStatusHTML({
+    contributorName: cleanName,
+    resourceTitle: cleanTitle,
+    existingResourceTitle: cleanExisting,
+    status: isApproved ? "Approved" : "Rejected",
+    reviewedAtFormatted: timeFormatted,
+    reviewedBy,
+    adminFeedback,
+    portalUrl
+  });
+
+  const transporter = getTransporter();
+
+  if (transporter) {
+    try {
+      const senderAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.EMAIL_USER || `"Study Portal Support" <${ADMIN_EMAIL}>`;
+      const mailOptions = {
+        from: senderAddress,
+        to: cleanEmail,
+        subject: emailSubject,
+        text: textContent,
+        html: htmlContent
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`\n✓ [CONTRIBUTOR STATUS EMAIL SENT]`);
+      console.log(`  To: ${cleanEmail}`);
+      console.log(`  Subject: ${emailSubject}`);
+      console.log(`  Status: ${status}\n`);
+
+      return {
+        success: true,
+        mode: "live_smtp",
+        messageId: info.messageId,
+        recipient: cleanEmail
+      };
+    } catch (smtpErr) {
+      console.error(`\n⚠ [CONTRIBUTOR STATUS EMAIL FAILED]`);
+      console.error(`  Recipient: ${cleanEmail}`);
+      console.error(`  Error: ${smtpErr.message}\n`);
+      return {
+        success: false,
+        mode: "live_smtp_failed",
+        error: smtpErr.message,
+        recipient: cleanEmail
+      };
+    }
+  } else {
+    console.log(`
+╔══════════════════════════════════════════════════════════════════════════════╗
+║             📢 CONTRIBUTOR STATUS UPDATE (REVIEWED BY ADMIN)                 ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Contributor Email  : ${cleanEmail.padEnd(52)} ║
+║ Contributor Name   : ${cleanName.padEnd(52)} ║
+║ Resource Title     : ${cleanTitle.substring(0, 52).padEnd(52)} ║
+║ Target Resource    : ${cleanExisting.substring(0, 52).padEnd(52)} ║
+║ Approval Status    : ${(isApproved ? "APPROVED & PUBLISHED" : "REJECTED").padEnd(52)} ║
+║ Feedback           : ${(adminFeedback || "None").substring(0, 52).padEnd(52)} ║
+║ Review Timestamp   : ${timeFormatted.localFormatted.padEnd(52)} ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+    `);
+
+    return {
+      success: true,
+      mode: "preview_logged",
+      recipient: cleanEmail
     };
   }
 }
@@ -852,7 +1188,9 @@ module.exports = {
   getEmailConfigStatus,
   sendAdminRegistrationNotification,
   sendAdminContributionNotification,
+  sendContributorStatusNotification,
   sendTestNotification,
   setCustomTransporter,
   verifyTransporterConnection
 };
+

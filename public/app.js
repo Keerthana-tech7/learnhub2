@@ -9,6 +9,7 @@ const KEY_REGISTERED = "studyportal_has_registered";
 const KEY_LOGGED_IN = "studyportal_is_logged_in";
 const KEY_USER_DATA = "studyportal_user_data";
 const KEY_LAST_EMAIL = "studyportal_last_email";
+const KEY_AUTH_TOKEN = "studyportal_auth_token";
 
 // Protected Pages that require authentication
 const PROTECTED_PAGES = ["home", "resources", "ai-search", "upload", "admin"];
@@ -37,14 +38,58 @@ function markUserAsRegistered(email) {
 }
 
 function isUserLoggedIn() {
-  return sessionStorage.getItem(KEY_LOGGED_IN) === "true" || localStorage.getItem(KEY_LOGGED_IN) === "true";
+  return (
+    sessionStorage.getItem(KEY_LOGGED_IN) === "true" ||
+    localStorage.getItem(KEY_LOGGED_IN) === "true" ||
+    localStorage.getItem("learnhub_logged_in") === "true"
+  );
 }
 
-function setLoggedInUser(user) {
+function getAuthToken() {
+  return (
+    sessionStorage.getItem(KEY_AUTH_TOKEN) ||
+    localStorage.getItem(KEY_AUTH_TOKEN) ||
+    sessionStorage.getItem("learnhub_token") ||
+    localStorage.getItem("learnhub_token") ||
+    ""
+  );
+}
+
+function getAuthHeaders(extraHeaders = {}) {
+  const headers = { ...extraHeaders };
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+    headers["x-auth-token"] = token;
+  }
+  const user = getCurrentUser();
+  if (user && user.email) {
+    headers["x-user-email"] = user.email;
+    if (user.role === "admin") {
+      headers["x-admin-email"] = user.email;
+      headers["x-admin-role"] = "admin";
+    }
+  }
+  return headers;
+}
+
+function setLoggedInUser(user, token) {
+  if (!user) return;
   sessionStorage.setItem(KEY_LOGGED_IN, "true");
   sessionStorage.setItem(KEY_USER_DATA, JSON.stringify(user));
   localStorage.setItem(KEY_LOGGED_IN, "true");
   localStorage.setItem(KEY_USER_DATA, JSON.stringify(user));
+
+  // Sync with learnhub keys for backwards compatibility
+  localStorage.setItem("learnhub_logged_in", "true");
+  localStorage.setItem("learnhub_user", JSON.stringify(user));
+
+  if (token) {
+    sessionStorage.setItem(KEY_AUTH_TOKEN, token);
+    localStorage.setItem(KEY_AUTH_TOKEN, token);
+    localStorage.setItem("learnhub_token", token);
+  }
+
   const isMasterAdmin = user && user.email && (user.email.toLowerCase() === "admin.studyportal@gmail.com" || user.email.toLowerCase() === "admin@studyportal.edu");
   if (user && user.email && user.role !== "admin" && !isMasterAdmin) {
     markUserAsRegistered(user.email);
@@ -57,7 +102,10 @@ function setLoggedInUser(user) {
 
 function getCurrentUser() {
   try {
-    const raw = sessionStorage.getItem(KEY_USER_DATA) || localStorage.getItem(KEY_USER_DATA);
+    const raw =
+      sessionStorage.getItem(KEY_USER_DATA) ||
+      localStorage.getItem(KEY_USER_DATA) ||
+      localStorage.getItem("learnhub_user");
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
     return null;
@@ -67,8 +115,14 @@ function getCurrentUser() {
 function clearSessionState() {
   sessionStorage.removeItem(KEY_LOGGED_IN);
   sessionStorage.removeItem(KEY_USER_DATA);
+  sessionStorage.removeItem(KEY_AUTH_TOKEN);
+  sessionStorage.removeItem("learnhub_token");
   localStorage.removeItem(KEY_LOGGED_IN);
   localStorage.removeItem(KEY_USER_DATA);
+  localStorage.removeItem(KEY_AUTH_TOKEN);
+  localStorage.removeItem("learnhub_logged_in");
+  localStorage.removeItem("learnhub_user");
+  localStorage.removeItem("learnhub_token");
   updateNavUI();
 }
 
@@ -311,14 +365,27 @@ async function initializeAppFlow() {
     localStorage.removeItem(KEY_LAST_EMAIL);
   }
 
-  // First, verify if an active session exists on backend
+  // First, verify if an active session or token exists on backend
+  let backendSessionValid = false;
   try {
-    const res = await fetch("/api/session");
+    const res = await fetch("/api/session", {
+      credentials: "include",
+      headers: getAuthHeaders()
+    });
     if (res.ok) {
       const data = await res.json();
       if (data.loggedIn && data.user) {
-        setLoggedInUser(data.user);
-        showPage("home");
+        backendSessionValid = true;
+        setLoggedInUser(data.user, data.token);
+
+        // Retain intended route if specified via hash (e.g. #upload, #resources, #admin)
+        const initialHash = window.location.hash.replace("#", "");
+        if (initialHash && ["home", "resources", "ai-search", "upload", "admin"].includes(initialHash)) {
+          showPage(initialHash);
+        } else {
+          showPage("home");
+        }
+        fetchResources();
         return;
       }
     }
@@ -326,10 +393,13 @@ async function initializeAppFlow() {
     console.warn("Session check notice:", e.message);
   }
 
+  // If backend does NOT recognize session or token, purge any stale client authentication
+  if (!backendSessionValid && isUserLoggedIn()) {
+    clearSessionState();
+  }
+
   // If not logged in on backend, verify client registration state
-  if (isUserLoggedIn()) {
-    showPage("home");
-  } else if (hasUserRegistered()) {
+  if (hasUserRegistered()) {
     // Returning user: show Login page directly with clean fields
     showPage("login");
     clearAdminAutofill();
@@ -466,13 +536,14 @@ if (loginForm) {
       const response = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password })
       });
 
       const data = await response.json();
 
       if (response.ok && data.success && data.user) {
-        setLoggedInUser(data.user);
+        setLoggedInUser(data.user, data.token);
         markUserAsRegistered(email);
 
         showAuthMessage("login-message", `Welcome, ${data.user.name}. Opening dashboard...`, "success");
@@ -500,7 +571,11 @@ if (loginForm) {
 // Logout
 async function logoutUser() {
   try {
-    await fetch("/api/logout", { method: "POST" });
+    await fetch("/api/logout", {
+      method: "POST",
+      credentials: "include",
+      headers: getAuthHeaders()
+    });
   } catch (e) {
     console.warn("Logout notice:", e.message);
   }
@@ -1072,20 +1147,35 @@ let selectedUploadFile = null;
 
 // Initialize Upload Page with autofilled session details and populated resources dropdown
 async function initUploadPage() {
-  let user = getCurrentUser();
-  if (!user) {
-    try {
-      const sessRes = await fetch("/api/session");
-      if (sessRes.ok) {
-        const sessData = await sessRes.json();
-        if (sessData.loggedIn && sessData.user) {
-          user = sessData.user;
-          setCurrentUser(user);
-        }
+  let user = null;
+  try {
+    const sessRes = await fetch("/api/session", {
+      credentials: "include",
+      headers: getAuthHeaders()
+    });
+    if (sessRes.ok) {
+      const sessData = await sessRes.json();
+      if (sessData.loggedIn && sessData.user) {
+        user = sessData.user;
+        setLoggedInUser(user, sessData.token);
       }
-    } catch (e) {
-      // Ignore background session fetch errors
     }
+  } catch (e) {
+    console.warn("Session check notice during upload init:", e);
+  }
+
+  // If backend session failed, check client cache as secondary
+  if (!user) {
+    user = getCurrentUser();
+  }
+
+  // If still not authenticated, protect the page and enforce login
+  if (!user || !isUserLoggedIn()) {
+    clearSessionState();
+    showToast("Authentication required. Please sign in to submit a contribution.");
+    showAuthMessage("upload-feedback", "Authentication required. Please sign in to submit a contribution.", "error");
+    showPage("login");
+    return;
   }
 
   const nameInput = document.getElementById("upload-contributor-name");
@@ -1094,14 +1184,12 @@ async function initUploadPage() {
   const emailDisplay = document.getElementById("upload-user-email-display");
   const avatarEl = document.getElementById("upload-user-avatar");
 
-  if (user) {
-    if (nameInput) nameInput.value = user.name || "";
-    if (emailInput) emailInput.value = user.email || "";
-    if (nameDisplay) nameDisplay.textContent = user.name || "Registered Student";
-    if (emailDisplay) emailDisplay.textContent = user.email || "";
-    if (avatarEl) {
-      avatarEl.textContent = (user.name ? user.name[0] : "U").toUpperCase();
-    }
+  if (nameInput) nameInput.value = user.name || "";
+  if (emailInput) emailInput.value = user.email || "";
+  if (nameDisplay) nameDisplay.textContent = user.name || "Registered Student";
+  if (emailDisplay) emailDisplay.textContent = user.email || "";
+  if (avatarEl) {
+    avatarEl.textContent = (user.name ? user.name[0] : "U").toUpperCase();
   }
 
   const subjectVal = document.getElementById("upload-subject")?.value || "C Programming";
@@ -1305,7 +1393,8 @@ async function handleUploadSubmit(e) {
     const response = await fetch("/api/contributions", {
       method: "POST",
       body: formData,
-      credentials: "same-origin"
+      credentials: "include",
+      headers: getAuthHeaders()
     });
 
     const data = await response.json();
@@ -1339,6 +1428,14 @@ async function handleUploadSubmit(e) {
       setTimeout(() => {
         showAuthMessage("upload-feedback", "", "");
       }, 7000);
+    } else if (response.status === 401) {
+      clearSessionState();
+      const authErr = data.message || "Authentication required. Please sign in to submit a contribution.";
+      showAuthMessage("upload-feedback", authErr, "error");
+      showToast("Authentication required. Please sign in.");
+      setTimeout(() => {
+        showPage("login");
+      }, 1500);
     } else {
       showAuthMessage("upload-feedback", data.message || "Contribution submission failed.", "error");
       showToast(data.message || "Submission failed.");
@@ -1416,8 +1513,24 @@ async function loadUserSubmittedRequests(forceFresh = false) {
 
   try {
     const res = await fetch(`/api/user/contributions${forceFresh ? "?_=" + Date.now() : ""}`, {
-      credentials: "same-origin"
+      credentials: "include",
+      headers: getAuthHeaders()
     });
+
+    if (res.status === 401) {
+      clearSessionState();
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="padding: 28px; text-align: center; color: var(--text-dim);">
+              Authentication required. Please sign in to track your submitted contribution requests.
+            </td>
+          </tr>
+        `;
+      }
+      return;
+    }
+
     const data = await res.json();
 
     if (res.ok && data.contributions) {
@@ -1545,12 +1658,18 @@ let currentModalContrib = null;
 
 function getAdminAuthHeaders() {
   const user = getCurrentUser();
+  const token = getAuthToken();
   const headers = {
     "Accept": "application/json"
   };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+    headers["x-auth-token"] = token;
+  }
   const email = (user && user.email) || (user && user.role === "admin" ? "admin.studyportal@gmail.com" : "");
   if (email) {
     headers["x-admin-email"] = email;
+    headers["x-user-email"] = email;
   }
   if (user && user.role) {
     headers["x-admin-role"] = user.role;
@@ -1679,7 +1798,7 @@ async function loadAdminContributionsTable(forceFresh = false) {
       : "/api/admin/contributions";
     const res = await fetch(url, {
       headers: { ...getAdminAuthHeaders(), "Cache-Control": forceFresh ? "no-cache" : "default" },
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
 
@@ -1908,7 +2027,7 @@ async function approveContributionApi(id, adminFeedback = null) {
     const res = await fetch(`/api/admin/contributions/${id}/approve`, {
       method: "POST",
       headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin",
+      credentials: "include",
       body: JSON.stringify({ adminFeedback })
     });
     const data = await res.json();
@@ -1934,7 +2053,7 @@ async function rejectContributionApi(id, adminFeedback = null) {
     const res = await fetch(`/api/admin/contributions/${id}/reject`, {
       method: "POST",
       headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin",
+      credentials: "include",
       body: JSON.stringify({ adminFeedback })
     });
     const data = await res.json();
@@ -1966,7 +2085,7 @@ async function openContributionModal(id) {
     try {
       const res = await fetch(`/api/admin/contributions/${id}`, {
         headers: getAdminAuthHeaders(),
-        credentials: "same-origin"
+        credentials: "include"
       });
       const data = await res.json();
       if (res.ok && data.contribution) {
@@ -2197,7 +2316,7 @@ async function loadAdminUsersTable(forceFresh = false) {
     const url = forceFresh ? `/api/admin/users?fresh=true&_=${Date.now()}` : "/api/admin/users";
     const res = await fetch(url, {
       headers: { ...getAdminAuthHeaders(), "Cache-Control": forceFresh ? "no-cache" : "default" },
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
 
@@ -2272,7 +2391,7 @@ async function toggleUserRole(userId, newRole) {
     const res = await fetch(`/api/admin/users/${userId}/role`, {
       method: "POST",
       headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin",
+      credentials: "include",
       body: JSON.stringify({ role: newRole })
     });
     const data = await res.json();
@@ -2295,7 +2414,7 @@ async function deleteUserAccount(userId, userEmail) {
     const res = await fetch(`/api/admin/users/${userId}`, {
       method: "DELETE",
       headers: getAdminAuthHeaders(),
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
     if (res.ok) {
@@ -2323,7 +2442,7 @@ async function loadAdminResourcesTable() {
   try {
     const res = await fetch("/api/admin/resources", {
       headers: getAdminAuthHeaders(),
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
 
@@ -2463,7 +2582,7 @@ async function approveResourceItem(resourceId, title) {
     const res = await fetch(`/api/admin/resources/${resourceId}/approve`, {
       method: "POST",
       headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
     if (res.ok && data.success) {
@@ -2486,7 +2605,7 @@ async function rejectResourceItem(resourceId, title) {
     const res = await fetch(`/api/admin/resources/${resourceId}/reject`, {
       method: "POST",
       headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
     if (res.ok && data.success) {
@@ -2509,7 +2628,7 @@ async function deleteResourceItem(resourceId, title) {
     const res = await fetch(`/api/admin/resources/${resourceId}`, {
       method: "DELETE",
       headers: getAdminAuthHeaders(),
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
     if (res.ok) {
@@ -2636,7 +2755,7 @@ async function loadAdminNotificationsTable(forceFresh = false) {
   // 2. Refresh email engine status in background
   fetch("/api/admin/email-status", {
     headers: getAdminAuthHeaders(),
-    credentials: "same-origin"
+    credentials: "include"
   })
     .then((r) => r.json())
     .then((data) => {
@@ -2659,7 +2778,7 @@ async function loadAdminNotificationsTable(forceFresh = false) {
     const url = forceFresh ? `/api/admin/notifications?fresh=true&_=${Date.now()}` : "/api/admin/notifications";
     const res = await fetch(url, {
       headers: { ...getAdminAuthHeaders(), "Cache-Control": forceFresh ? "no-cache" : "default" },
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
 
@@ -2751,7 +2870,7 @@ async function triggerTestAdminNotification() {
     const res = await fetch("/api/admin/notifications/test", {
       method: "POST",
       headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
 
@@ -2787,7 +2906,7 @@ async function triggerTestContributionNotification() {
     const res = await fetch("/api/admin/notifications/test-contribution", {
       method: "POST",
       headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin"
+      credentials: "include"
     });
     const data = await res.json();
 

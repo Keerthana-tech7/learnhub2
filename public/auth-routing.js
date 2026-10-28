@@ -12,7 +12,12 @@ function whenShowPageReady(callback) {
 }
 
 function isLoggedIn() {
-    return localStorage.getItem("learnhub_logged_in") === "true";
+    return (
+        localStorage.getItem("studyportal_is_logged_in") === "true" ||
+        sessionStorage.getItem("studyportal_is_logged_in") === "true" ||
+        localStorage.getItem("learnhub_logged_in") === "true" ||
+        sessionStorage.getItem("learnhub_logged_in") === "true"
+    );
 }
 
 function showPageSafely(pageName) {

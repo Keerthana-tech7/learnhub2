@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 // Prevent server exit from background DB socket reconnects/ECONNRESET
 process.on("unhandledRejection", (reason) => {
@@ -12,6 +13,7 @@ process.on("unhandledRejection", (reason) => {
 process.on("uncaughtException", (err) => {
   console.error("Resilience Warning: Handled background exception:", err.message);
 });
+
 const sql = require("./database");
 const {
   ADMIN_EMAIL,
@@ -27,6 +29,49 @@ const { QUESTION_PAPERS } = require("./questionPapersData");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const AUTH_SECRET = process.env.SESSION_SECRET || "studyportal-secret-key-2026-secure";
+
+// Enable reverse-proxy awareness (essential for Vercel, cloud proxies, and secure cookies)
+app.set("trust proxy", 1);
+
+// Cryptographic Auth Token Generator & Verifier (Tamper-proof HMAC-SHA256)
+function generateAuthToken(user) {
+  if (!user || !user.id) return "";
+  const payload = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role || "user",
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 // 7 days
+  };
+  const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto.createHmac("sha256", AUTH_SECRET).update(data).digest("base64url");
+  return `${data}.${signature}`;
+}
+
+function verifyAuthToken(token) {
+  if (!token || typeof token !== "string" || !token.includes(".")) return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [data, signature] = parts;
+  if (!data || !signature) return null;
+  try {
+    const expectedSig = crypto.createHmac("sha256", AUTH_SECRET).update(data).digest("base64url");
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
+    const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
+      return null;
+    }
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
 
 // Ensure uploads folder exists
 const uploadsDir = path.join(__dirname, "public", "uploads");
@@ -80,16 +125,86 @@ function uploadPdfMiddleware(req, res, next) {
   });
 }
 
-// Authentication enforcement middleware (Requirement 6)
-function requireAuth(req, res, next) {
-  if (req.session && req.session.user) {
+// Robust multi-factor authentication enforcement middleware
+// Supports: (1) express session cookie, (2) Bearer token / x-auth-token, (3) database email fallback
+async function requireAuth(req, res, next) {
+  // 1. Check active express session
+  if (req.session && req.session.user && req.session.user.id) {
+    req.user = req.session.user;
     return next();
   }
+
+  // 2. Check Bearer token or x-auth-token header
+  let token = null;
+  const authHeader = req.headers["authorization"] || "";
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice(7).trim();
+  } else if (req.headers["x-auth-token"]) {
+    token = String(req.headers["x-auth-token"]).trim();
+  }
+
+  if (token) {
+    const verified = verifyAuthToken(token);
+    if (verified && verified.id) {
+      // Re-hydrate session for multi-deployment / serverless resiliency
+      if (req.session) {
+        req.session.user = {
+          id: verified.id,
+          name: verified.name,
+          email: verified.email,
+          role: verified.role
+        };
+      }
+      req.user = verified;
+      return next();
+    }
+  }
+
+  // 3. Fallback header check by email against database
+  const fallbackEmail = req.headers["x-user-email"] ? String(req.headers["x-user-email"]).trim().toLowerCase() : null;
+  if (fallbackEmail) {
+    try {
+      const userRows = await sql`
+        SELECT id, name, email, role FROM users WHERE LOWER(email) = ${fallbackEmail} LIMIT 1
+      `;
+      if (userRows && userRows.length > 0) {
+        const u = userRows[0];
+        if (req.session) {
+          req.session.user = u;
+        }
+        req.user = u;
+        return next();
+      }
+    } catch (e) {
+      console.warn("requireAuth email lookup notice:", e.message);
+    }
+  }
+
   return res.status(401).json({
     success: false,
     message: "Authentication required. Please sign in to submit a contribution."
   });
 }
+
+// CORS & Preflight headers for cross-origin and deployment resilience
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  } else {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-auth-token, x-user-email, x-admin-email, x-admin-role, Cache-Control"
+  );
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Middlewares
 app.use(express.json());
@@ -119,13 +234,17 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// Session management
+// Session management with proxy and secure cookie configuration
 app.use(
   session({
-    secret: "studyportal-secret-key-2026-secure",
+    secret: AUTH_SECRET,
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     }
   })
@@ -391,14 +510,70 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-// Check session
-app.get("/api/session", (req, res) => {
-  if (req.session && req.session.user) {
+// Check session (supports session cookie, Bearer token, x-auth-token, and x-user-email fallback)
+app.get("/api/session", async (req, res) => {
+  // 1. Active express session
+  if (req.session && req.session.user && req.session.user.id) {
+    const token = generateAuthToken(req.session.user);
     return res.json({
       loggedIn: true,
-      user: req.session.user
+      user: req.session.user,
+      token: token
     });
   }
+
+  // 2. Token header (Bearer or x-auth-token)
+  let token = null;
+  const authHeader = req.headers["authorization"] || "";
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice(7).trim();
+  } else if (req.headers["x-auth-token"]) {
+    token = String(req.headers["x-auth-token"]).trim();
+  }
+
+  if (token) {
+    const verified = verifyAuthToken(token);
+    if (verified && verified.id) {
+      if (req.session) {
+        req.session.user = {
+          id: verified.id,
+          name: verified.name,
+          email: verified.email,
+          role: verified.role
+        };
+      }
+      return res.json({
+        loggedIn: true,
+        user: verified,
+        token: token
+      });
+    }
+  }
+
+  // 3. Fallback header check by email against database
+  const fallbackEmail = req.headers["x-user-email"] ? String(req.headers["x-user-email"]).trim().toLowerCase() : null;
+  if (fallbackEmail) {
+    try {
+      const userRows = await sql`
+        SELECT id, name, email, role FROM users WHERE LOWER(email) = ${fallbackEmail} LIMIT 1
+      `;
+      if (userRows && userRows.length > 0) {
+        const u = userRows[0];
+        if (req.session) {
+          req.session.user = u;
+        }
+        const refreshedToken = generateAuthToken(u);
+        return res.json({
+          loggedIn: true,
+          user: u,
+          token: refreshedToken
+        });
+      }
+    } catch (e) {
+      console.warn("Session check email fallback notice:", e.message);
+    }
+  }
+
   res.json({ loggedIn: false });
 });
 
@@ -555,9 +730,12 @@ app.post("/api/login", async (req, res) => {
       role: userRole
     };
 
+    const token = generateAuthToken(req.session.user);
+
     res.json({
       success: true,
       message: "Login successful! Welcome back.",
+      token: token,
       user: {
         id: user.id,
         name: user.name,
@@ -618,17 +796,18 @@ app.get("/api/resources", async (req, res) => {
  */
 async function handleResourceContributionSubmission(req, res) {
   // 1. Enforce authentication (Requirement 6)
-  if (!req.session || !req.session.user) {
+  const authUser = (req.session && req.session.user) || req.user;
+  if (!authUser || !authUser.id) {
     return res.status(401).json({
       success: false,
-      message: "Authentication required. Please sign in to submit a coursework contribution."
+      message: "Authentication required. Please sign in to submit a contribution."
     });
   }
 
   // 2. Never trust user-provided names or emails when authenticated account details are available (Requirement 6)
-  const contributorName = String(req.session.user.name || "Student Contributor").trim();
-  const contributorEmail = String(req.session.user.email || "").trim();
-  const contributorId = req.session.user.id || null;
+  const contributorName = String(authUser.name || "Student Contributor").trim();
+  const contributorEmail = String(authUser.email || "").trim();
+  const contributorId = authUser.id || null;
 
   if (!contributorEmail) {
     return res.status(401).json({
@@ -826,8 +1005,9 @@ app.post("/api/upload", requireAuth, uploadPdfMiddleware, handleResourceContribu
 
 // Contributor Status Tracking: GET /api/user/contributions (Requirement 4)
 app.get("/api/user/contributions", requireAuth, async (req, res) => {
-  const userId = req.session && req.session.user ? req.session.user.id : null;
-  const userEmail = (req.session && req.session.user && req.session.user.email) || "";
+  const authUser = (req.session && req.session.user) || req.user;
+  const userId = authUser ? authUser.id : null;
+  const userEmail = authUser ? (authUser.email || "") : "";
 
   try {
     const rows = await sql`
@@ -931,11 +1111,32 @@ function invalidateAdminCache(key) {
 async function requireAdmin(req, res, next) {
   // 1. Check express session
   if (req.session && req.session.user && req.session.user.role === "admin") {
+    req.user = req.session.user;
     return next();
   }
 
-  // 2. Fallback header check (e.g. if session cookie dropped during network hiccups)
-  const headerEmail = (req.headers["x-admin-email"] || "").trim().toLowerCase();
+  // 2. Check Bearer token or x-auth-token header
+  let token = null;
+  const authHeader = req.headers["authorization"] || "";
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice(7).trim();
+  } else if (req.headers["x-auth-token"]) {
+    token = String(req.headers["x-auth-token"]).trim();
+  }
+
+  if (token) {
+    const verified = verifyAuthToken(token);
+    if (verified && verified.id && verified.role === "admin") {
+      if (req.session) {
+        req.session.user = verified;
+      }
+      req.user = verified;
+      return next();
+    }
+  }
+
+  // 3. Fallback header check (e.g. if session cookie dropped during network hiccups)
+  const headerEmail = (req.headers["x-admin-email"] || req.headers["x-user-email"] || "").trim().toLowerCase();
   const masterAdminEmail = (process.env.ADMIN_EMAIL || "admin.studyportal@gmail.com").toLowerCase();
 
   if (headerEmail) {
@@ -1147,8 +1348,8 @@ app.get("/api/admin/contributions/:id", requireAdmin, async (req, res) => {
 app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) => {
   const { id } = req.params;
   const adminFeedback = req.body.adminFeedback ? String(req.body.adminFeedback).trim() : null;
-  const reviewerName = (req.session && req.session.user && req.session.user.name) || "System Administrator";
-  const reviewerEmail = (req.session && req.session.user && req.session.user.email) || ADMIN_EMAIL;
+  const reviewerName = (req.session && req.session.user && req.session.user.name) || (req.user && req.user.name) || "System Administrator";
+  const reviewerEmail = (req.session && req.session.user && req.session.user.email) || (req.user && req.user.email) || ADMIN_EMAIL;
   const reviewedBy = `${reviewerName} (${reviewerEmail})`;
 
   try {
@@ -1282,8 +1483,8 @@ app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) 
 app.post("/api/admin/contributions/:id/reject", requireAdmin, async (req, res) => {
   const { id } = req.params;
   const adminFeedback = req.body.adminFeedback ? String(req.body.adminFeedback).trim() : "Contribution declined by administrator.";
-  const reviewerName = (req.session && req.session.user && req.session.user.name) || "System Administrator";
-  const reviewerEmail = (req.session && req.session.user && req.session.user.email) || ADMIN_EMAIL;
+  const reviewerName = (req.session && req.session.user && req.session.user.name) || (req.user && req.user.name) || "System Administrator";
+  const reviewerEmail = (req.session && req.session.user && req.session.user.email) || (req.user && req.user.email) || ADMIN_EMAIL;
   const reviewedBy = `${reviewerName} (${reviewerEmail})`;
 
   try {

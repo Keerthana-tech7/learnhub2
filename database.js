@@ -72,10 +72,10 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   },
-  min: 2, // Keep 2 pre-warmed connections alive at all times for instant query response
+  min: 0,
   max: 15,
-  idleTimeoutMillis: 300000, // 5 minutes before idle connection closes (prevents cold starts)
-  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 60000,
+  connectionTimeoutMillis: 20000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000
 });
@@ -104,7 +104,8 @@ async function executeQuery(queryText, values) {
       msg.includes("timeout") ||
       msg.includes("ECONNRESET")
     ) {
-      // Retry once immediately on a refreshed connection
+      // Pause briefly to allow AWS Neon pooler to complete reconnection
+      await new Promise((r) => setTimeout(r, 600));
       try {
         const res = await pool.query(queryText, values);
         return res.rows;

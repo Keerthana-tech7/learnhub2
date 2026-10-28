@@ -2548,18 +2548,6 @@ function renderAdminNotificationsRows(notifications) {
 
   tbody.innerHTML = notifications
     .map((n) => {
-      const dateObj = n.registered_at ? new Date(n.registered_at) : new Date();
-      const dateStr = dateObj.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric"
-      });
-      const timeStr = dateObj.toLocaleTimeString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      });
-
       const isDelivered = n.status === "delivered";
       const isFailed = n.status && n.status.startsWith("failed");
       const badgeClass = isDelivered ? "delivered" : (isFailed ? "failed" : "logged");
@@ -2575,19 +2563,27 @@ function renderAdminNotificationsRows(notifications) {
         ? `<span class="status-badge pending" style="font-size: 9.5px; padding: 2px 7px;">📝 CONTRIBUTION</span>`
         : `<span class="status-badge logged" style="font-size: 9.5px; padding: 2px 7px;">👤 REGISTRATION</span>`;
 
+      const subjectName = detailsObj.subject || detailsObj.category || "General";
+      const existingResInfo = detailsObj.existingResource
+        ? `<div style="font-size: 11px; color: #1e3a8a; margin-top: 2px; font-weight: 600;">Target: ${escapeHtml(detailsObj.existingResource)}</div>`
+        : "";
+
       const eventDetails = isContribution
         ? `
           <div style="font-weight: 700; color: var(--text-main); font-size: 13px;">${escapeHtml(detailsObj.title || "Study Material")}</div>
-          <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Subject: <span class="subject-badge" style="font-size: 10px; padding: 1px 6px;">${escapeHtml(detailsObj.subject || "General")}</span> ${detailsObj.fileUrl ? "• 📎 Attached File" : ""}</div>
+          <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Subject: <span class="subject-badge" style="font-size: 10px; padding: 1px 6px;">${escapeHtml(subjectName)}</span> ${detailsObj.fileUrl ? "• 📎 Attached File" : ""}</div>
+          ${existingResInfo}
         `
         : `
           <div style="font-weight: 700; color: var(--text-main); font-size: 13px;">New User Registration</div>
           <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Role: <span class="role-badge ${n.user_role === 'admin' ? 'admin' : 'user'}" style="font-size: 9px;">${escapeHtml(n.user_role || 'user')}</span></div>
         `;
 
+      const formattedDateTime = formatDateTimeWithTz(n.registered_at);
+
       return `
         <tr style="${isContribution ? "background: #fafaf9;" : ""}">
-          <td style="font-family: var(--font-mono); color: var(--text-dim);">${n.id}</td>
+          <td style="font-family: var(--font-mono); color: var(--text-dim); font-size: 12px;">#${n.id}</td>
           <td>
             <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
               ${typeBadge}
@@ -2601,8 +2597,7 @@ function renderAdminNotificationsRows(notifications) {
             <span style="font-family: var(--font-mono); font-size: 12.5px; color: var(--text-main);">${escapeHtml(n.user_email)}</span>
           </td>
           <td>
-            <div style="font-size: 12.5px; color: var(--text-main); font-weight: 600;">${dateStr}</div>
-            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">${timeStr}</div>
+            <div style="font-size: 12px; color: var(--text-main); font-weight: 600; line-height: 1.4;">${formattedDateTime}</div>
           </td>
           <td>
             <span style="font-family: var(--font-mono); font-size: 12px; color: var(--blue-primary);">${escapeHtml(n.recipient || "admin.studyportal@gmail.com")}</span>
@@ -2626,6 +2621,8 @@ async function loadAdminNotificationsTable(forceFresh = false) {
   if (forceFresh) {
     isFetchingAdminNotifs = false;
     cachedAdminNotifications = null;
+    tbody.style.opacity = "0.55";
+    tbody.style.transition = "opacity 0.2s ease";
   }
 
   // 1. FAST PATH: Render immediately from memory cache (0 milliseconds)
@@ -2643,20 +2640,10 @@ async function loadAdminNotificationsTable(forceFresh = false) {
       if (data.success && data.status) {
         if (targetEmailDisplay) targetEmailDisplay.textContent = data.status.adminEmail;
         if (targetEmailInline) targetEmailInline.textContent = data.status.adminEmail;
-        const statusBadge = document.getElementById("smtp-status-badge");
         if (engineStatusDisplay) {
           engineStatusDisplay.textContent = data.status.isConfigured
             ? `Live SMTP (${data.status.sender})`
             : "Nodemailer (Active / Logging)";
-        }
-        if (statusBadge) {
-          if (data.status.isConfigured) {
-            statusBadge.className = "status-badge delivered";
-            statusBadge.textContent = `✓ Live Inbox Delivery Active (${data.status.sender})`;
-          } else {
-            statusBadge.className = "status-badge logged";
-            statusBadge.textContent = "Console & DB Logging Mode";
-          }
         }
       }
     })
@@ -2676,31 +2663,37 @@ async function loadAdminNotificationsTable(forceFresh = false) {
     if (res.ok && data.notifications) {
       cachedAdminNotifications = data.notifications;
       renderAdminNotificationsRows(cachedAdminNotifications);
+      fetchLiveStats(false);
+      return true;
     } else {
+      const errMsg = (data && data.message) || "Failed to load notifications.";
       if (!cachedAdminNotifications) {
         tbody.innerHTML = `
           <tr>
             <td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">
-              <div style="margin-bottom: 8px;">${escapeHtml(data.message || "Failed to load notifications.")}</div>
+              <div style="margin-bottom: 8px;">${escapeHtml(errMsg)}</div>
               <button class="btn-secondary btn-sm" onclick="refreshAdminNotificationsLog(this)">↻ Retry Loading</button>
             </td>
           </tr>
         `;
       }
+      return false;
     }
   } catch (err) {
     if (!cachedAdminNotifications) {
       tbody.innerHTML = `
         <tr>
           <td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">
-            <div style="margin-bottom: 8px;">Failed to connect to notifications service.</div>
+            <div style="margin-bottom: 8px;">${escapeHtml(err.message || "Failed to connect to notifications service.")}</div>
             <button class="btn-secondary btn-sm" onclick="refreshAdminNotificationsLog(this)">↻ Retry Loading</button>
           </td>
         </tr>
       `;
     }
+    return false;
   } finally {
     isFetchingAdminNotifs = false;
+    if (tbody) tbody.style.opacity = "1";
   }
 }
 
@@ -2716,18 +2709,22 @@ async function refreshAdminNotificationsLog(btn) {
   if (targetBtn) {
     targetBtn.disabled = true;
     targetBtn.innerHTML = `
-      <span class="btn-spinner"></span>
-      <span>Refreshing...</span>
+      <span class="btn-spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px;"></span>
+      <span>Refreshing Log...</span>
     `;
   }
 
   try {
     cachedAdminNotifications = null;
-    await loadAdminNotificationsTable(true);
-    showToast("✓ Admin notifications log refreshed.");
+    const ok = await loadAdminNotificationsTable(true);
+    if (ok) {
+      showToast("✓ Admin notifications log refreshed successfully.");
+    } else {
+      showToast("Could not refresh notifications log.");
+    }
   } catch (e) {
     console.error("Refresh log error:", e);
-    showToast("Failed to refresh notifications log.");
+    showToast(e.message || "Failed to refresh notifications log.");
   } finally {
     if (targetBtn) {
       targetBtn.disabled = false;

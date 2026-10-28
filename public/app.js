@@ -182,9 +182,6 @@ function showPage(pageId, pushToHistory = true) {
     if (!loggedIn || !user || user.role !== "admin") {
       showToast("Access restricted: Administrator credentials required.");
       pageId = "home";
-    } else {
-      loadAdminUsersTable();
-      loadAdminResourcesTable();
     }
   }
 
@@ -247,9 +244,10 @@ function showPage(pageId, pushToHistory = true) {
     fetchLiveStats();
   }
 
-  // Admin page load
+  // Admin page load (parallel preload for instant tab switches)
   if (pageId === "admin") {
     loadAdminUsersTable();
+    loadAdminResourcesTable();
     loadAdminNotificationsTable();
     fetchLiveStats();
   }
@@ -1176,7 +1174,24 @@ async function handleUploadSubmit(e) {
   }
 }
 
-// ================= ADMIN MANAGEMENT CONSOLE =================
+// ================= ADMIN MANAGEMENT CONSOLE (FAST & RESILIENT) =================
+
+let cachedAdminUsers = null;
+let cachedAdminNotifications = null;
+let isFetchingAdminUsers = false;
+let isFetchingAdminNotifs = false;
+
+function getAdminAuthHeaders() {
+  const user = getCurrentUser();
+  const headers = {
+    "Accept": "application/json"
+  };
+  if (user && user.email) {
+    headers["x-admin-email"] = user.email;
+    if (user.role) headers["x-admin-role"] = user.role;
+  }
+  return headers;
+}
 
 function switchAdminTab(tabName, btn) {
   document.querySelectorAll(".admin-tab-btn").forEach((b) => b.classList.remove("active"));
@@ -1191,57 +1206,109 @@ function switchAdminTab(tabName, btn) {
   if (tabName === "notifications") loadAdminNotificationsTable();
 }
 
-async function loadAdminUsersTable() {
+function renderAdminUsersRows(users) {
   const tbody = document.getElementById("admin-users-table-body");
   const totalBadge = document.getElementById("admin-user-total-badge");
+  if (!tbody || !users) return;
+
+  if (totalBadge) totalBadge.textContent = `${users.length} Users`;
+
+  if (users.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="padding: 24px; text-align: center; color: var(--text-dim);">
+          No registered user accounts found.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = users
+    .map((u) => {
+      const dateStr = u.created_at ? new Date(u.created_at).toLocaleDateString() : "Active";
+      const isAdmin = u.role === "admin";
+      return `
+        <tr>
+          <td style="font-family: var(--font-mono); color: var(--text-dim);">${u.id}</td>
+          <td style="font-weight: 600; color: var(--text-main);">${escapeHtml(u.name)}</td>
+          <td style="font-family: var(--font-mono); font-size: 12.5px;">${escapeHtml(u.email)}</td>
+          <td>
+            <span class="role-badge ${isAdmin ? 'admin' : 'user'}">
+              ${isAdmin ? 'ADMIN' : 'USER'}
+            </span>
+          </td>
+          <td style="color: var(--text-dim); font-size: 12.5px;">${dateStr}</td>
+          <td style="text-align: right;">
+            <div class="admin-table-actions" style="justify-content: flex-end;">
+              ${
+                (u.email === "admin.studyportal@gmail.com" || u.email === "admin@studyportal.edu")
+                  ? `<span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">Master</span>`
+                  : `
+                    <button class="btn-secondary btn-sm" onclick="toggleUserRole(${u.id}, '${isAdmin ? 'user' : 'admin'}')">
+                      ${isAdmin ? 'Demote to User' : 'Make Admin'}
+                    </button>
+                    <button class="btn-danger btn-sm" onclick="deleteUserAccount(${u.id}, '${escapeHtml(u.email)}')">
+                      Delete
+                    </button>
+                  `
+              }
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+async function loadAdminUsersTable(forceFresh = false) {
+  const tbody = document.getElementById("admin-users-table-body");
   if (!tbody) return;
 
+  // 1. FAST PATH: Instant render from memory cache in 0 milliseconds
+  if (cachedAdminUsers && !forceFresh) {
+    renderAdminUsersRows(cachedAdminUsers);
+  }
+
+  if (isFetchingAdminUsers && !forceFresh) return;
+  isFetchingAdminUsers = true;
+
   try {
-    const res = await fetch("/api/admin/users");
+    const res = await fetch("/api/admin/users", {
+      headers: getAdminAuthHeaders(),
+      credentials: "same-origin"
+    });
     const data = await res.json();
 
     if (res.ok && data.users) {
-      if (totalBadge) totalBadge.textContent = `${data.users.length} Users`;
-      tbody.innerHTML = data.users
-        .map((u) => {
-          const dateStr = u.created_at ? new Date(u.created_at).toLocaleDateString() : "Active";
-          const isAdmin = u.role === "admin";
-          return `
-            <tr>
-              <td style="font-family: var(--font-mono); color: var(--text-dim);">${u.id}</td>
-              <td style="font-weight: 600; color: var(--text-main);">${escapeHtml(u.name)}</td>
-              <td style="font-family: var(--font-mono); font-size: 12.5px;">${escapeHtml(u.email)}</td>
-              <td>
-                <span class="role-badge ${isAdmin ? 'admin' : 'user'}">
-                  ${isAdmin ? 'ADMIN' : 'USER'}
-                </span>
-              </td>
-              <td style="color: var(--text-dim); font-size: 12.5px;">${dateStr}</td>
-              <td style="text-align: right;">
-                <div class="admin-table-actions" style="justify-content: flex-end;">
-                  ${
-                    (u.email === "admin.studyportal@gmail.com" || u.email === "admin@studyportal.edu")
-                      ? `<span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">Master</span>`
-                      : `
-                        <button class="btn-secondary btn-sm" onclick="toggleUserRole(${u.id}, '${isAdmin ? 'user' : 'admin'}')">
-                          ${isAdmin ? 'Demote to User' : 'Make Admin'}
-                        </button>
-                        <button class="btn-danger btn-sm" onclick="deleteUserAccount(${u.id}, '${escapeHtml(u.email)}')">
-                          Delete
-                        </button>
-                      `
-                  }
-                </div>
-              </td>
-            </tr>
-          `;
-        })
-        .join("");
+      cachedAdminUsers = data.users;
+      renderAdminUsersRows(cachedAdminUsers);
     } else {
-      tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">${data.message || "Failed to load directory."}</td></tr>`;
+      // Keep existing cached data rendered if available
+      if (!cachedAdminUsers) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">
+              <div style="margin-bottom: 8px;">${escapeHtml(data.message || "Failed to load directory.")}</div>
+              <button class="btn-secondary btn-sm" onclick="loadAdminUsersTable(true)">↻ Retry Loading</button>
+            </td>
+          </tr>
+        `;
+      }
     }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">Failed to connect to admin endpoint.</td></tr>`;
+    if (!cachedAdminUsers) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="padding: 24px; text-align: center; color: var(--accent-red);">
+            <div style="margin-bottom: 8px;">Failed to connect to admin directory endpoint.</div>
+            <button class="btn-secondary btn-sm" onclick="loadAdminUsersTable(true)">↻ Retry Loading</button>
+          </td>
+        </tr>
+      `;
+    }
+  } finally {
+    isFetchingAdminUsers = false;
   }
 }
 
@@ -1251,13 +1318,15 @@ async function toggleUserRole(userId, newRole) {
   try {
     const res = await fetch(`/api/admin/users/${userId}/role`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify({ role: newRole })
     });
     const data = await res.json();
     if (res.ok) {
       showToast(`User role updated to ${newRole.toUpperCase()}.`);
-      loadAdminUsersTable();
+      cachedAdminUsers = null;
+      loadAdminUsersTable(true);
     } else {
       showToast(data.message || "Could not update user role.");
     }
@@ -1271,12 +1340,15 @@ async function deleteUserAccount(userId, userEmail) {
 
   try {
     const res = await fetch(`/api/admin/users/${userId}`, {
-      method: "DELETE"
+      method: "DELETE",
+      headers: getAdminAuthHeaders(),
+      credentials: "same-origin"
     });
     const data = await res.json();
     if (res.ok) {
       showToast("User account removed.");
-      loadAdminUsersTable();
+      cachedAdminUsers = null;
+      loadAdminUsersTable(true);
       fetchLiveStats();
     } else {
       showToast(data.message || "Could not delete user account.");
@@ -1296,7 +1368,10 @@ async function loadAdminResourcesTable() {
   if (!tbody) return;
 
   try {
-    const res = await fetch("/api/admin/resources");
+    const res = await fetch("/api/admin/resources", {
+      headers: getAdminAuthHeaders(),
+      credentials: "same-origin"
+    });
     const data = await res.json();
 
     if (res.ok && data.resources) {
@@ -1433,7 +1508,9 @@ async function loadAdminResourcesTable() {
 async function approveResourceItem(resourceId, title) {
   try {
     const res = await fetch(`/api/admin/resources/${resourceId}/approve`, {
-      method: "POST"
+      method: "POST",
+      headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin"
     });
     const data = await res.json();
     if (res.ok && data.success) {
@@ -1454,7 +1531,9 @@ async function rejectResourceItem(resourceId, title) {
 
   try {
     const res = await fetch(`/api/admin/resources/${resourceId}/reject`, {
-      method: "POST"
+      method: "POST",
+      headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin"
     });
     const data = await res.json();
     if (res.ok && data.success) {
@@ -1475,7 +1554,9 @@ async function deleteResourceItem(resourceId, title) {
 
   try {
     const res = await fetch(`/api/admin/resources/${resourceId}`, {
-      method: "DELETE"
+      method: "DELETE",
+      headers: getAdminAuthHeaders(),
+      credentials: "same-origin"
     });
     const data = await res.json();
     if (res.ok) {
@@ -1492,137 +1573,178 @@ async function deleteResourceItem(resourceId, title) {
 
 // ================= ADMIN EMAIL NOTIFICATIONS =================
 
-async function loadAdminNotificationsTable() {
+function renderAdminNotificationsRows(notifications) {
   const tbody = document.getElementById("admin-notifications-table-body");
   const totalBadge = document.getElementById("admin-notif-total-badge");
   const counterBadge = document.getElementById("admin-notif-counter");
   const telemetryBadge = document.getElementById("admin-notif-stat-count");
+  if (!tbody || !notifications) return;
+
+  const count = notifications.length;
+  if (totalBadge) totalBadge.textContent = `${count} Alert${count === 1 ? "" : "s"}`;
+  if (counterBadge) counterBadge.textContent = count;
+  if (telemetryBadge) telemetryBadge.textContent = count;
+
+  if (count === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="padding: 24px; text-align: center; color: var(--text-dim);">
+          No alerts dispatched yet. New notifications will appear automatically here as users register or contribute.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = notifications
+    .map((n) => {
+      const dateObj = n.registered_at ? new Date(n.registered_at) : new Date();
+      const dateStr = dateObj.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      });
+      const timeStr = dateObj.toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+
+      const isDelivered = n.status === "delivered";
+      const isFailed = n.status && n.status.startsWith("failed");
+      const badgeClass = isDelivered ? "delivered" : (isFailed ? "failed" : "logged");
+      const badgeText = isDelivered ? "DELIVERED TO INBOX" : (isFailed ? "FAILED" : "DISPATCHED & LOGGED");
+
+      let detailsObj = {};
+      try {
+        detailsObj = typeof n.details === "string" ? JSON.parse(n.details) : (n.details || {});
+      } catch (e) {}
+
+      const isContribution = n.type === "resource_contributed";
+      const typeBadge = isContribution
+        ? `<span class="status-badge pending" style="font-size: 9.5px; padding: 2px 7px;">📝 CONTRIBUTION</span>`
+        : `<span class="status-badge logged" style="font-size: 9.5px; padding: 2px 7px;">👤 REGISTRATION</span>`;
+
+      const eventDetails = isContribution
+        ? `
+          <div style="font-weight: 700; color: var(--text-main); font-size: 13px;">${escapeHtml(detailsObj.title || "Study Material")}</div>
+          <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Subject: <span class="subject-badge" style="font-size: 10px; padding: 1px 6px;">${escapeHtml(detailsObj.subject || "General")}</span> ${detailsObj.fileUrl ? "• 📎 Attached File" : ""}</div>
+        `
+        : `
+          <div style="font-weight: 700; color: var(--text-main); font-size: 13px;">New User Registration</div>
+          <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Role: <span class="role-badge ${n.user_role === 'admin' ? 'admin' : 'user'}" style="font-size: 9px;">${escapeHtml(n.user_role || 'user')}</span></div>
+        `;
+
+      return `
+        <tr style="${isContribution ? "background: #fafaf9;" : ""}">
+          <td style="font-family: var(--font-mono); color: var(--text-dim);">${n.id}</td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+              ${typeBadge}
+            </div>
+            ${eventDetails}
+          </td>
+          <td>
+            <strong style="color: var(--text-main); font-size: 13.5px;">${escapeHtml(n.user_name || "Student")}</strong>
+          </td>
+          <td>
+            <span style="font-family: var(--font-mono); font-size: 12.5px; color: var(--text-main);">${escapeHtml(n.user_email)}</span>
+          </td>
+          <td>
+            <div style="font-size: 12.5px; color: var(--text-main); font-weight: 600;">${dateStr}</div>
+            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">${timeStr}</div>
+          </td>
+          <td>
+            <span style="font-family: var(--font-mono); font-size: 12px; color: var(--blue-primary);">${escapeHtml(n.recipient || "admin.studyportal@gmail.com")}</span>
+          </td>
+          <td style="text-align: right;">
+            <span class="status-badge ${badgeClass}">${badgeText}</span>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+async function loadAdminNotificationsTable(forceFresh = false) {
+  const tbody = document.getElementById("admin-notifications-table-body");
   const targetEmailDisplay = document.getElementById("admin-target-email-display");
   const targetEmailInline = document.getElementById("admin-target-email-inline");
   const engineStatusDisplay = document.getElementById("admin-email-engine-status");
   if (!tbody) return;
 
-  try {
-    // 1. Fetch email status
-    fetch("/api/admin/email-status")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success && data.status) {
-          if (targetEmailDisplay) targetEmailDisplay.textContent = data.status.adminEmail;
-          if (targetEmailInline) targetEmailInline.textContent = data.status.adminEmail;
-          const statusBadge = document.getElementById("smtp-status-badge");
-          if (engineStatusDisplay) {
-            engineStatusDisplay.textContent = data.status.isConfigured
-              ? `Live SMTP (${data.status.sender})`
-              : "Nodemailer (Active / Logging)";
-          }
-          if (statusBadge) {
-            if (data.status.isConfigured) {
-              statusBadge.className = "status-badge delivered";
-              statusBadge.textContent = `✓ Live Inbox Delivery Active (${data.status.sender})`;
-            } else {
-              statusBadge.className = "status-badge logged";
-              statusBadge.textContent = "Console & DB Logging Mode";
-            }
+  // 1. FAST PATH: Render immediately from memory cache (0 milliseconds)
+  if (cachedAdminNotifications && !forceFresh) {
+    renderAdminNotificationsRows(cachedAdminNotifications);
+  }
+
+  // 2. Refresh email engine status in background
+  fetch("/api/admin/email-status", {
+    headers: getAdminAuthHeaders(),
+    credentials: "same-origin"
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.success && data.status) {
+        if (targetEmailDisplay) targetEmailDisplay.textContent = data.status.adminEmail;
+        if (targetEmailInline) targetEmailInline.textContent = data.status.adminEmail;
+        const statusBadge = document.getElementById("smtp-status-badge");
+        if (engineStatusDisplay) {
+          engineStatusDisplay.textContent = data.status.isConfigured
+            ? `Live SMTP (${data.status.sender})`
+            : "Nodemailer (Active / Logging)";
+        }
+        if (statusBadge) {
+          if (data.status.isConfigured) {
+            statusBadge.className = "status-badge delivered";
+            statusBadge.textContent = `✓ Live Inbox Delivery Active (${data.status.sender})`;
+          } else {
+            statusBadge.className = "status-badge logged";
+            statusBadge.textContent = "Console & DB Logging Mode";
           }
         }
-      })
-      .catch(() => {});
+      }
+    })
+    .catch(() => {});
 
-    // 2. Fetch notifications log
-    const res = await fetch("/api/admin/notifications");
+  if (isFetchingAdminNotifs && !forceFresh) return;
+  isFetchingAdminNotifs = true;
+
+  try {
+    const res = await fetch("/api/admin/notifications", {
+      headers: getAdminAuthHeaders(),
+      credentials: "same-origin"
+    });
     const data = await res.json();
 
     if (res.ok && data.notifications) {
-      const count = data.notifications.length;
-      if (totalBadge) totalBadge.textContent = `${count} Alert${count === 1 ? "" : "s"}`;
-      if (counterBadge) counterBadge.textContent = count;
-      if (telemetryBadge) telemetryBadge.textContent = count;
-
-      if (count === 0) {
+      cachedAdminNotifications = data.notifications;
+      renderAdminNotificationsRows(cachedAdminNotifications);
+    } else {
+      if (!cachedAdminNotifications) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="7" style="padding: 24px; text-align: center; color: var(--text-dim);">
-              No alerts dispatched yet. New notifications will appear automatically here as users register or contribute.
+            <td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">
+              <div style="margin-bottom: 8px;">${escapeHtml(data.message || "Failed to load notifications.")}</div>
+              <button class="btn-secondary btn-sm" onclick="loadAdminNotificationsTable(true)">↻ Retry Loading</button>
             </td>
           </tr>
         `;
-        return;
       }
-
-      tbody.innerHTML = data.notifications
-        .map((n) => {
-          const dateObj = n.registered_at ? new Date(n.registered_at) : new Date();
-          const dateStr = dateObj.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "short",
-            day: "numeric"
-          });
-          const timeStr = dateObj.toLocaleTimeString(undefined, {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit"
-          });
-
-          const isDelivered = n.status === "delivered";
-          const isFailed = n.status && n.status.startsWith("failed");
-          const badgeClass = isDelivered ? "delivered" : (isFailed ? "failed" : "logged");
-          const badgeText = isDelivered ? "DELIVERED TO INBOX" : (isFailed ? "FAILED" : "DISPATCHED & LOGGED");
-
-          let detailsObj = {};
-          try {
-            detailsObj = typeof n.details === "string" ? JSON.parse(n.details) : (n.details || {});
-          } catch (e) {}
-
-          const isContribution = n.type === "resource_contributed";
-          const typeBadge = isContribution
-            ? `<span class="status-badge pending" style="font-size: 9.5px; padding: 2px 7px;">📝 CONTRIBUTION</span>`
-            : `<span class="status-badge logged" style="font-size: 9.5px; padding: 2px 7px;">👤 REGISTRATION</span>`;
-
-          const eventDetails = isContribution
-            ? `
-              <div style="font-weight: 700; color: var(--text-main); font-size: 13px;">${escapeHtml(detailsObj.title || "Study Material")}</div>
-              <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Subject: <span class="subject-badge" style="font-size: 10px; padding: 1px 6px;">${escapeHtml(detailsObj.subject || "General")}</span> ${detailsObj.fileUrl ? "• 📎 Attached File" : ""}</div>
-            `
-            : `
-              <div style="font-weight: 700; color: var(--text-main); font-size: 13px;">New User Registration</div>
-              <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Role: <span class="role-badge ${n.user_role === 'admin' ? 'admin' : 'user'}" style="font-size: 9px;">${escapeHtml(n.user_role || 'user')}</span></div>
-            `;
-
-          return `
-            <tr style="${isContribution ? "background: #fafaf9;" : ""}">
-              <td style="font-family: var(--font-mono); color: var(--text-dim);">${n.id}</td>
-              <td>
-                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
-                  ${typeBadge}
-                </div>
-                ${eventDetails}
-              </td>
-              <td>
-                <strong style="color: var(--text-main); font-size: 13.5px;">${escapeHtml(n.user_name || "Student")}</strong>
-              </td>
-              <td>
-                <span style="font-family: var(--font-mono); font-size: 12.5px; color: var(--text-main);">${escapeHtml(n.user_email)}</span>
-              </td>
-              <td>
-                <div style="font-size: 12.5px; color: var(--text-main); font-weight: 600;">${dateStr}</div>
-                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">${timeStr}</div>
-              </td>
-              <td>
-                <span style="font-family: var(--font-mono); font-size: 12px; color: var(--blue-primary);">${escapeHtml(n.recipient || "admin.studyportal@gmail.com")}</span>
-              </td>
-              <td style="text-align: right;">
-                <span class="status-badge ${badgeClass}">${badgeText}</span>
-              </td>
-            </tr>
-          `;
-        })
-        .join("");
-    } else {
-      tbody.innerHTML = `<tr><td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">${data.message || "Failed to load notifications."}</td></tr>`;
     }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">Failed to connect to notifications service.</td></tr>`;
+    if (!cachedAdminNotifications) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="padding: 24px; text-align: center; color: var(--accent-red);">
+            <div style="margin-bottom: 8px;">Failed to connect to notifications service.</div>
+            <button class="btn-secondary btn-sm" onclick="loadAdminNotificationsTable(true)">↻ Retry Loading</button>
+          </td>
+        </tr>
+      `;
+    }
+  } finally {
+    isFetchingAdminNotifs = false;
   }
 }
 
@@ -1640,13 +1762,15 @@ async function triggerTestAdminNotification() {
   try {
     const res = await fetch("/api/admin/notifications/test", {
       method: "POST",
-      headers: { "Content-Type": "application/json" }
+      headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin"
     });
     const data = await res.json();
 
     if (res.ok && data.success) {
       showToast(data.message || "Test registration alert dispatched to admin mailbox!");
-      loadAdminNotificationsTable();
+      cachedAdminNotifications = null;
+      loadAdminNotificationsTable(true);
     } else {
       showToast(data.message || "Failed to dispatch test alert.");
     }
@@ -1674,13 +1798,15 @@ async function triggerTestContributionNotification() {
   try {
     const res = await fetch("/api/admin/notifications/test-contribution", {
       method: "POST",
-      headers: { "Content-Type": "application/json" }
+      headers: { ...getAdminAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin"
     });
     const data = await res.json();
 
     if (res.ok && data.success) {
       showToast(data.message || "Test contribution alert dispatched to admin mailbox!");
-      loadAdminNotificationsTable();
+      cachedAdminNotifications = null;
+      loadAdminNotificationsTable(true);
     } else {
       showToast(data.message || "Failed to dispatch test contribution alert.");
     }

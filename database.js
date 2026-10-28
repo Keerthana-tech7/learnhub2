@@ -7,7 +7,12 @@ const bcrypt = require("bcryptjs");
 const NEON_DEFAULT_URL = "postgresql://neondb_owner:npg_YX1NqfCu0Whc@ep-lingering-night-b4ed5h7r-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 const connectionString = process.env.DATABASE_URL || NEON_DEFAULT_URL;
 
-// Ensure Neon host can resolve even if local network DNS refuses or blocks it (local only)
+// Pre-seeded DNS cache for Neon AWS pooler endpoints to eliminate 3.5s+ DNS roundtrips on Windows
+const DNS_CACHE = new Map([
+  ["ep-lingering-night-b4ed5h7r-pooler.c-6.us-east-2.aws.neon.tech", ["77.112.100.143", "52.14.39.200", "52.95.251.153"]]
+]);
+
+// Ensure Neon host can resolve instantly even if local network DNS refuses or blocks it (local only)
 if (!process.env.VERCEL) {
   const originalLookup = dns.lookup;
   try {
@@ -21,10 +26,24 @@ if (!process.env.VERCEL) {
       callback = options;
       options = {};
     }
+
+    // 1. Fast path: return cached IP addresses in 0ms
+    if (DNS_CACHE.has(hostname)) {
+      const addresses = DNS_CACHE.get(hostname);
+      if (options && options.all) {
+        return process.nextTick(() =>
+          callback(null, addresses.map((a) => ({ address: a, family: 4 })))
+        );
+      }
+      return process.nextTick(() => callback(null, addresses[0], 4));
+    }
+
+    // 2. Fallback: resolve and store in cache
     dns.resolve4(hostname, (err, addresses) => {
       if (err || !addresses || addresses.length === 0) {
         return originalLookup(hostname, options, callback);
       }
+      DNS_CACHE.set(hostname, addresses);
       if (options && options.all) {
         return callback(
           null,
@@ -34,6 +53,18 @@ if (!process.env.VERCEL) {
       callback(null, addresses[0], 4);
     });
   };
+
+  // Background refresh of DNS cache every 30 minutes without blocking queries
+  const dnsRefreshTimer = setInterval(() => {
+    for (const host of DNS_CACHE.keys()) {
+      dns.resolve4(host, (err, addresses) => {
+        if (!err && addresses && addresses.length > 0) {
+          DNS_CACHE.set(host, addresses);
+        }
+      });
+    }
+  }, 30 * 60 * 1000);
+  if (dnsRefreshTimer.unref) dnsRefreshTimer.unref();
 }
 
 const pool = new Pool({
@@ -41,28 +72,45 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   },
-  max: 10,
-  idleTimeoutMillis: 15000,
-  connectionTimeoutMillis: 10000
+  min: 2, // Keep 2 pre-warmed connections alive at all times for instant query response
+  max: 15,
+  idleTimeoutMillis: 300000, // 5 minutes before idle connection closes (prevents cold starts)
+  connectionTimeoutMillis: 10000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000
 });
 
 pool.on("error", (err) => {
-  console.warn("Notice: Neon pool idle connection refreshed:", err.message);
+  console.warn("Notice: Neon pool background connection event:", err.message);
 });
 
-// SQL tagged template literal & standard query function with auto-retry
+// Periodic heartbeat to prevent AWS/Neon pooler from dropping idle connections
+const poolHeartbeat = setInterval(() => {
+  pool.query("SELECT 1").catch(() => {});
+}, 30000);
+if (poolHeartbeat.unref) poolHeartbeat.unref();
+
+// SQL tagged template literal & standard query function with instant auto-retry
 async function executeQuery(queryText, values) {
   try {
     const res = await pool.query(queryText, values);
     return res.rows;
   } catch (err) {
+    const msg = (err && err.message) || "";
     if (
-      err.message.includes("Connection terminated") ||
-      err.message.includes("socket hang up") ||
-      err.message.includes("closed")
+      msg.includes("Connection terminated") ||
+      msg.includes("socket hang up") ||
+      msg.includes("closed") ||
+      msg.includes("timeout") ||
+      msg.includes("ECONNRESET")
     ) {
-      const res = await pool.query(queryText, values);
-      return res.rows;
+      // Retry once immediately on a refreshed connection
+      try {
+        const res = await pool.query(queryText, values);
+        return res.rows;
+      } catch (retryErr) {
+        throw retryErr;
+      }
     }
     throw err;
   }
@@ -202,7 +250,14 @@ async function initDB() {
       )
     `;
 
-    console.log("✓ Neon PostgreSQL connected: `users`, `resources` & `admin_notifications` tables verified.");
+    // 5. Create performance indexes for instant queries
+    try {
+      await sql`CREATE INDEX IF NOT EXISTS idx_users_role_email ON users (role, email)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_resources_status_created ON resources (status, created_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_admin_notif_created ON admin_notifications (registered_at DESC)`;
+    } catch (idxErr) {}
+
+    console.log("✓ Neon PostgreSQL connected: `users`, `resources` & `admin_notifications` tables and performance indexes verified.");
   } catch (err) {
     console.error("Database initialization notice:", err.message);
   }

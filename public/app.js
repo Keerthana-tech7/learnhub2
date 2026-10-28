@@ -1464,8 +1464,12 @@ async function triggerTestAdminNotification() {
 }
 
 async function saveEmailSettings() {
-  const user = document.getElementById("smtp-sender-email").value.trim();
-  const pass = document.getElementById("smtp-app-password").value.trim();
+  const userEl = document.getElementById("smtp-sender-email");
+  const passEl = document.getElementById("smtp-app-password");
+  if (!userEl || !passEl) return;
+
+  const user = userEl.value.trim();
+  const pass = passEl.value.trim();
   const saveBtn = document.getElementById("btn-save-smtp");
 
   if (!user || !pass) {

@@ -173,6 +173,9 @@ async function initDB() {
         content TEXT NOT NULL,
         file_url TEXT,
         file_name TEXT,
+        file_data BYTEA,
+        file_size INT,
+        file_mimetype TEXT DEFAULT 'application/pdf',
         uploader_name TEXT DEFAULT 'Verified Faculty',
         uploader_email TEXT,
         uploader_id INT,
@@ -187,6 +190,15 @@ async function initDB() {
     } catch (e) {}
     try {
       await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS file_name TEXT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS file_data BYTEA`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS file_size INT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS file_mimetype TEXT DEFAULT 'application/pdf'`;
     } catch (e) {}
     try {
       await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS uploader_email TEXT`;
@@ -269,6 +281,9 @@ async function initDB() {
         contribution_content TEXT,
         file_path TEXT,
         file_name TEXT,
+        file_data BYTEA,
+        file_size INT,
+        file_mimetype TEXT DEFAULT 'application/pdf',
         status TEXT DEFAULT 'Pending',
         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         reviewed_at TIMESTAMP,
@@ -295,6 +310,15 @@ async function initDB() {
     } catch (e) {}
     try {
       await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS file_name TEXT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS file_data BYTEA`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS file_size INT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS file_mimetype TEXT DEFAULT 'application/pdf'`;
     } catch (e) {}
     try {
       await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pending'`;
@@ -332,5 +356,5 @@ async function initDB() {
 }
 
 initDB();
-
+sql.initDB = initDB;
 module.exports = sql;

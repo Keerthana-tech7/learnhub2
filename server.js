@@ -26,10 +26,6 @@ const {
   verifyTransporterConnection
 } = require("./mailer");
 const { QUESTION_PAPERS } = require("./questionPapersData");
-const {
-  isCloudinaryConfigured,
-  uploadPdfToCloudinary
-} = require("./cloudinaryService");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -92,30 +88,18 @@ function isServerlessOrReadOnly() {
 }
 
 // Multer in-memory storage for user contribution PDF uploads.
-// Crucial for Vercel: Vercel serverless functions have a read-only filesystem (/var/task).
-// In-memory storage buffers files directly in RAM so they can be streamed to Cloudinary without EROFS errors.
+// Buffers files directly in RAM (req.file.buffer) so they can be saved directly into PostgreSQL as BYTEA.
+// Completely avoids writing to the filesystem, eliminating EROFS read-only errors on Vercel.
 const storage = multer.memoryStorage();
 
-// Ensure local uploads folder only exists in local development (not on Vercel/serverless)
-const uploadsDir = path.join(__dirname, "public", "uploads");
-if (!isServerlessOrReadOnly()) {
-  try {
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-  } catch (e) {
-    console.warn("Notice: Could not create local uploads directory:", e.message);
-  }
-}
-
-// Restrict file uploads to permitted formats, strictly PDF (Requirement 6)
+// Restrict file uploads to permitted formats, strictly PDF up to 4MB (Vercel serverless request body payload limit is 4.5MB)
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB limit
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB limit
   fileFilter: function (req, file, cb) {
     const ext = path.extname(file.originalname).toLowerCase();
-    const isPdfMime = file.mimetype === "application/pdf" || file.mimetype === "application/x-pdf";
-    if (ext === ".pdf" && (isPdfMime || !file.mimetype)) {
+    const isPdfMime = file.mimetype === "application/pdf" || file.mimetype === "application/x-pdf" || file.mimetype === "application/octet-stream";
+    if (ext === ".pdf") {
       cb(null, true);
     } else {
       cb(new Error("Only PDF documents (.pdf) are permitted for contribution uploads."));
@@ -128,7 +112,10 @@ function uploadPdfMiddleware(req, res, next) {
   upload.single("resourceFile")(req, res, function (err) {
     if (err instanceof multer.MulterError) {
       if (err.code === "LIMIT_FILE_SIZE") {
-        return res.status(400).json({ success: false, message: "File exceeds 25MB limit. Please upload a smaller PDF." });
+        return res.status(400).json({
+          success: false,
+          message: "File exceeds the 4MB limit. Direct database storage on Vercel serverless architecture supports PDFs up to 4MB. Please compress your PDF or upload a smaller file."
+        });
       }
       return res.status(400).json({ success: false, message: err.message });
     } else if (err) {
@@ -513,7 +500,8 @@ app.get("/api/health", async (req, res) => {
     res.json({
       status: "healthy",
       database: "Neon PostgreSQL connected",
-      cloudStorage: isCloudinaryConfigured() ? "Cloudinary (Connected)" : (isServerlessOrReadOnly() ? "Cloudinary missing on Vercel" : "Local Development (public/uploads)"),
+      storage: "Database Native (PostgreSQL BYTEA)",
+      fileSizeLimit: "4MB",
       environment: isServerlessOrReadOnly() ? "Vercel / Serverless" : "Local Development",
       timestamp: new Date().toISOString()
     });
@@ -918,15 +906,21 @@ async function handleResourceContributionSubmission(req, res) {
     console.warn("Notice: Existing resource lookup:", lookupErr.message);
   }
 
-  // 6. Handle PDF file upload via Cloudinary or graceful local fallback
-  let filePath = null;
+  // 6. Handle PDF file upload via PostgreSQL direct binary storage (BYTEA)
+  // No Cloudinary, Firebase, or external storage required. Zero filesystem writes.
   let originalFileName = null;
+  let fileBuffer = null;
+  let fileSize = 0;
+  let fileMimetype = "application/pdf";
 
   if (req.file) {
     originalFileName = req.file.originalname;
+    fileBuffer = req.file.buffer;
+    fileSize = req.file.size || (req.file.buffer && req.file.buffer.length) || 0;
+    fileMimetype = req.file.mimetype || "application/pdf";
 
     // Validate that uploaded file is a valid PDF (check %PDF magic header)
-    const isPdfHeader = req.file.buffer && req.file.buffer.length >= 4 && req.file.buffer.slice(0, 4).toString() === "%PDF";
+    const isPdfHeader = fileBuffer && fileBuffer.length >= 4 && fileBuffer.slice(0, 4).toString() === "%PDF";
     if (!isPdfHeader) {
       return res.status(400).json({
         success: false,
@@ -934,48 +928,17 @@ async function handleResourceContributionSubmission(req, res) {
       });
     }
 
-    if (isCloudinaryConfigured()) {
-      try {
-        const uploadResult = await uploadPdfToCloudinary(req.file.buffer, req.file.originalname);
-        filePath = uploadResult.secure_url;
-      } catch (uploadErr) {
-        console.error("Cloudinary upload failure:", uploadErr.message);
-        return res.status(502).json({
-          success: false,
-          message: "Failed to upload PDF to cloud storage: " + (uploadErr.message || "Cloudinary connection error") + ". Please try again or verify your Cloudinary credentials."
-        });
-      }
-    } else if (isServerlessOrReadOnly()) {
-      // In Vercel serverless environment, local disk is read-only (/var/task). Cloud storage is mandatory.
-      console.error("Cloud storage missing on Vercel/serverless deployment.");
-      return res.status(503).json({
+    // Limit check: 4MB for serverless database storage (Vercel payload constraint)
+    if (fileSize > 4 * 1024 * 1024) {
+      return res.status(400).json({
         success: false,
-        message: "Cloud file storage is not configured on Vercel. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET (or CLOUDINARY_URL) to your Vercel Environment Variables to store PDFs permanently."
+        message: "File exceeds the 4MB limit. Direct database storage on Vercel supports PDFs up to 4MB. Please compress your PDF before uploading."
       });
-    } else {
-      // Offline / Local development fallback when Cloudinary is not configured in .env
-      try {
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-        const cleanOriginal = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e5);
-        const localFileName = uniqueSuffix + "-" + cleanOriginal;
-        fs.writeFileSync(path.join(uploadsDir, localFileName), req.file.buffer);
-        filePath = "/uploads/" + localFileName;
-        console.warn("Notice: Cloudinary is not configured in .env. Saved to local public/uploads/. Configure Cloudinary environment variables for permanent cloud storage.");
-      } catch (localWriteErr) {
-        console.error("Local file storage fallback failed:", localWriteErr.message);
-        return res.status(500).json({
-          success: false,
-          message: "Could not save uploaded PDF: " + localWriteErr.message + ". Cloud storage (Cloudinary) is required for persistent hosting."
-        });
-      }
     }
   }
 
   try {
-    // 7. Save contribution into `contributions` table with status "Pending" (Requirement 1, 3 & 5)
+    // 7. Save contribution into `contributions` table with status "Pending" and file_data BYTEA
     const inserted = await sql`
       INSERT INTO contributions (
         user_id,
@@ -988,6 +951,9 @@ async function handleResourceContributionSubmission(req, res) {
         contribution_content,
         file_path,
         file_name,
+        file_data,
+        file_size,
+        file_mimetype,
         status,
         submitted_at
       )
@@ -1000,18 +966,27 @@ async function handleResourceContributionSubmission(req, res) {
         ${cleanExistingId},
         ${cleanDesc},
         ${cleanContent},
-        ${filePath},
+        NULL,
         ${originalFileName},
+        ${fileBuffer},
+        ${fileSize},
+        ${fileMimetype},
         'Pending',
         CURRENT_TIMESTAMP
       )
-      RETURNING id, user_id, contributor_name, contributor_email, resource_title, category, existing_resource_id, description, contribution_content, file_path, file_name, status, submitted_at
+      RETURNING id, user_id, contributor_name, contributor_email, resource_title, category, existing_resource_id, description, contribution_content, file_name, status, submitted_at
     `;
 
     const newContribution = inserted[0];
+    const filePath = fileBuffer ? `/api/files/contributions/${newContribution.id}` : null;
+    if (filePath) {
+      await sql`UPDATE contributions SET file_path = ${filePath} WHERE id = ${newContribution.id}`;
+      newContribution.file_path = filePath;
+    }
 
     // 8. Automatically dispatch email notification to Admin (Requirement 2)
     const portalUrl = `${req.protocol}://${req.get("host")}/#admin`;
+    const fileUrlForEmail = filePath ? `${req.protocol}://${req.get("host")}${filePath}` : null;
     sendAdminContributionNotification({
       name: contributorName,
       email: contributorEmail,
@@ -1021,7 +996,7 @@ async function handleResourceContributionSubmission(req, res) {
       existingResourceId: cleanExistingId,
       description: cleanDesc,
       content: cleanContent,
-      fileUrl: filePath,
+      fileUrl: fileUrlForEmail,
       fileName: originalFileName,
       time: newContribution.submitted_at || new Date(),
       id: newContribution.id,
@@ -1068,6 +1043,70 @@ app.post("/api/contributions", requireAuth, uploadPdfMiddleware, handleResourceC
 
 // Forwarding /api/upload to the unified contribution handler
 app.post("/api/upload", requireAuth, uploadPdfMiddleware, handleResourceContributionSubmission);
+
+// ================= NATIVE DATABASE FILE SERVING APIS =================
+// Serves PDFs directly from PostgreSQL BYTEA storage.
+// Completely bypasses local disk writes and eliminates external storage services (Cloudinary, Firebase, etc.).
+
+// Serve submitted contribution PDF from database (for student tracking and admin review)
+app.get("/api/files/contributions/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const rows = await sql`
+      SELECT file_data, file_name, file_mimetype, file_size 
+      FROM contributions 
+      WHERE id = ${id} 
+      LIMIT 1
+    `;
+    if (!rows || rows.length === 0 || !rows[0].file_data) {
+      return res.status(404).send("Document not found or no PDF attached to this contribution.");
+    }
+    const file = rows[0];
+    const fileName = file.file_name || `contribution-${id}.pdf`;
+    const isDownload = req.query.download === "true";
+
+    res.setHeader("Content-Type", file.file_mimetype || "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `${isDownload ? "attachment" : "inline"}; filename="${encodeURIComponent(fileName)}"`
+    );
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    return res.send(file.file_data);
+  } catch (err) {
+    console.error("Error serving contribution PDF:", err.message);
+    res.status(500).send("Error reading PDF file from database.");
+  }
+});
+
+// Serve approved study resource PDF from database (for student viewing and downloading)
+app.get("/api/files/resources/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const rows = await sql`
+      SELECT file_data, file_name, file_mimetype, file_size 
+      FROM resources 
+      WHERE id = ${id} 
+      LIMIT 1
+    `;
+    if (!rows || rows.length === 0 || !rows[0].file_data) {
+      return res.status(404).send("Document not found or no PDF attached to this resource.");
+    }
+    const file = rows[0];
+    const fileName = file.file_name || `resource-${id}.pdf`;
+    const isDownload = req.query.download === "true";
+
+    res.setHeader("Content-Type", file.file_mimetype || "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `${isDownload ? "attachment" : "inline"}; filename="${encodeURIComponent(fileName)}"`
+    );
+    res.setHeader("Cache-Control", "public, max-age=86400"); // Cache 24hr for approved coursework
+    return res.send(file.file_data);
+  } catch (err) {
+    console.error("Error serving resource PDF:", err.message);
+    res.status(500).send("Error reading PDF file from database.");
+  }
+});
 
 // Contributor Status Tracking: GET /api/user/contributions (Requirement 4)
 app.get("/api/user/contributions", requireAuth, async (req, res) => {
@@ -1407,7 +1446,9 @@ app.get("/api/admin/contributions/:id", requireAdmin, async (req, res) => {
     if (!rows || rows.length === 0) {
       return res.status(404).json({ success: false, message: "Contribution request not found." });
     }
-    res.json({ success: true, contribution: rows[0] });
+    const cData = { ...rows[0] };
+    delete cData.file_data; // Exclude heavy raw buffer from JSON metadata
+    res.json({ success: true, contribution: cData });
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to load contribution details." });
   }
@@ -1452,6 +1493,7 @@ app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) 
     // "Only approved contributions can be published or applied to existing resources.
     //  Pending and rejected contributions must never appear as published resources."
     const resUniqueId = `contrib-${contrib.id}`;
+    const publishedFileUrl = contrib.file_data ? `/api/files/resources/${resUniqueId}` : contrib.file_path;
     const publishedContent = `
       <div class="community-contribution-header" style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
@@ -1480,10 +1522,10 @@ app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) 
           : ""
       }
       ${
-        contrib.file_path
+        publishedFileUrl
           ? `
         <div style="margin-top: 18px;">
-          <a href="${contrib.file_path}" target="_blank" class="btn-primary" style="display: inline-block; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+          <a href="${publishedFileUrl}" target="_blank" class="btn-primary" style="display: inline-block; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">
             ⬇️ Download Approved PDF Material
           </a>
         </div>
@@ -1494,7 +1536,7 @@ app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) 
 
     await sql`
       INSERT INTO resources (
-        id, title, subject, reading_time, level, summary, content, file_url, file_name, uploader_name, uploader_email, uploader_id, status, created_at
+        id, title, subject, reading_time, level, summary, content, file_url, file_name, file_data, file_size, file_mimetype, uploader_name, uploader_email, uploader_id, status, created_at
       ) VALUES (
         ${resUniqueId},
         ${contrib.resource_title},
@@ -1503,8 +1545,11 @@ app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) 
         'Peer Contribution',
         ${contrib.description},
         ${publishedContent},
-        ${contrib.file_path},
+        ${publishedFileUrl},
         ${contrib.file_name || null},
+        ${contrib.file_data || null},
+        ${contrib.file_size || null},
+        ${contrib.file_mimetype || 'application/pdf'},
         ${contrib.contributor_name},
         ${contrib.contributor_email},
         ${contrib.user_id},
@@ -1517,8 +1562,11 @@ app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) 
         subject = ${contrib.category || 'General'},
         summary = ${contrib.description},
         content = ${publishedContent},
-        file_url = ${contrib.file_path},
-        file_name = ${contrib.file_name || null}
+        file_url = ${publishedFileUrl},
+        file_name = ${contrib.file_name || null},
+        file_data = COALESCE(${contrib.file_data || null}, resources.file_data),
+        file_size = COALESCE(${contrib.file_size || null}, resources.file_size),
+        file_mimetype = COALESCE(${contrib.file_mimetype || 'application/pdf'}, resources.file_mimetype)
     `;
 
     // 3. Notify contributor by email (Requirement 3)

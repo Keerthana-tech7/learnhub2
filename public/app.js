@@ -958,10 +958,14 @@ function resetResourceFilters() {
 // ================= NOTES READER MODAL =================
 
 /**
- * Generate force-download URL for Cloudinary or fallback storage
+ * Generate force-download URL for database storage or fallback storage
  */
 function getDownloadPdfUrl(fileUrl, fileName) {
   if (!fileUrl) return "";
+  if (fileUrl.startsWith("/api/files/")) {
+    const separator = fileUrl.includes("?") ? "&" : "?";
+    return `${fileUrl}${separator}download=true`;
+  }
   if (fileUrl.includes("res.cloudinary.com") && fileUrl.includes("/upload/")) {
     const cleanName = encodeURIComponent((fileName || "study_resource").replace(/\.pdf$/i, "").replace(/[^a-zA-Z0-9_-]/g, "_"));
     return fileUrl.replace("/upload/", `/upload/fl_attachment:${cleanName}/`);
@@ -1000,9 +1004,9 @@ function openNotesModal(resourceId) {
             <svg class="icon icon-md" viewBox="0 0 24 24" style="width: 22px; height: 22px; color: #fff;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </div>
           <div>
-            <div style="font-size: 11px; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px;">Attached Study Document (Cloud Storage)</div>
+            <div style="font-size: 11px; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px;">Attached Study Document (Database Storage)</div>
             <strong style="font-size: 15px; color: #1e3a8a; display: block; margin-top: 2px;">${fileNameDisplay}</strong>
-            <div style="font-size: 12px; color: #475569; margin-top: 3px;">Verified PDF study material &bull; High-speed cloud CDN delivery</div>
+            <div style="font-size: 12px; color: #475569; margin-top: 3px;">Verified PDF study material &bull; Stored permanently in academic database</div>
           </div>
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -1339,6 +1343,18 @@ function handleFileSelected(input) {
       return;
     }
 
+    if (file.size > 4 * 1024 * 1024) {
+      showToast("PDF exceeds the 4MB limit for database storage.");
+      showAuthMessage("upload-feedback", "File exceeds the 4MB limit. Direct database storage on Vercel supports PDFs up to 4MB. Please compress your PDF or choose a smaller file.", "error");
+      input.value = "";
+      selectedUploadFile = null;
+      if (nameEl) {
+        nameEl.textContent = "Click or Drag & Drop PDF File Here";
+        nameEl.style.color = "";
+      }
+      return;
+    }
+
     selectedUploadFile = file;
     showAuthMessage("upload-feedback", "", "");
     if (nameEl) {
@@ -1376,6 +1392,18 @@ if (dropzone) {
       if (!isPdf) {
         showToast("Only PDF documents (.pdf) are permitted.");
         showAuthMessage("upload-feedback", "Invalid file type. Please drop a .pdf document.", "error");
+        selectedUploadFile = null;
+        if (fileInput) fileInput.value = "";
+        if (nameEl) {
+          nameEl.textContent = "Click or Drag & Drop PDF File Here";
+          nameEl.style.color = "";
+        }
+        return;
+      }
+
+      if (file.size > 4 * 1024 * 1024) {
+        showToast("PDF exceeds the 4MB limit for database storage.");
+        showAuthMessage("upload-feedback", "File exceeds the 4MB limit. Direct database storage on Vercel supports PDFs up to 4MB. Please compress your PDF or choose a smaller file.", "error");
         selectedUploadFile = null;
         if (fileInput) fileInput.value = "";
         if (nameEl) {
@@ -1431,6 +1459,11 @@ async function handleUploadSubmit(e) {
 
   if (selectedUploadFile && !selectedUploadFile.name.toLowerCase().endsWith(".pdf")) {
     showAuthMessage("upload-feedback", "Only PDF documents (.pdf) are permitted.", "error");
+    return;
+  }
+
+  if (selectedUploadFile && selectedUploadFile.size > 4 * 1024 * 1024) {
+    showAuthMessage("upload-feedback", "Attached PDF exceeds the 4MB limit. Direct database storage on Vercel supports PDFs up to 4MB. Please compress or choose a smaller PDF.", "error");
     return;
   }
 

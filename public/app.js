@@ -726,8 +726,14 @@ function renderResourceCardHtml(item) {
             <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             ${escapeHtml(item.reading_time || "5 min read")}
           </span>
+          ${item.file_url ? `
+          <span class="reading-pill" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600;">
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px; color: #2563eb;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            PDF Attached
+          </span>
+          ` : ''}
         </div>
-        ${isPyq ? `<div class="pyq-badge-tag"><svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ${yearTag}</div>` : ''}
+        ${isPyq ? `<div class="pyq-badge-tag"><svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> ${yearTag}</div>` : ''}
         <h3>${escapeHtml(item.title)}</h3>
         <p>${escapeHtml(item.summary)}</p>
       </div>
@@ -744,10 +750,17 @@ function renderResourceCardHtml(item) {
           <span>Read Notes</span>
         </button>
         `}
+        ${item.file_url ? `
+        <a href="${item.file_url}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 5px; color: #1e40af; border-color: #bfdbfe; background: #eff6ff; font-weight: 600;" title="Open or download attached PDF document">
+          <svg class="icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; color: #2563eb;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9 14 12 17 15 14"/></svg>
+          <span>PDF</span>
+        </a>
+        ` : `
         <button class="btn-secondary btn-sm" onclick="downloadResourceText('${item.id}')" title="Download plain text file">
           <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span>Download</span>
         </button>
+        `}
       </div>
     </div>
   `;
@@ -944,6 +957,18 @@ function resetResourceFilters() {
 
 // ================= NOTES READER MODAL =================
 
+/**
+ * Generate force-download URL for Cloudinary or fallback storage
+ */
+function getDownloadPdfUrl(fileUrl, fileName) {
+  if (!fileUrl) return "";
+  if (fileUrl.includes("res.cloudinary.com") && fileUrl.includes("/upload/")) {
+    const cleanName = encodeURIComponent((fileName || "study_resource").replace(/\.pdf$/i, "").replace(/[^a-zA-Z0-9_-]/g, "_"));
+    return fileUrl.replace("/upload/", `/upload/fl_attachment:${cleanName}/`);
+  }
+  return fileUrl;
+}
+
 function openNotesModal(resourceId) {
   const resource = allResources.find((r) => r.id === resourceId) || adminResourcesList.find((r) => r.id === resourceId);
   if (!resource) return;
@@ -961,7 +986,43 @@ function openNotesModal(resourceId) {
   document.getElementById("modal-reading-time").textContent = resource.reading_time || "5 min read";
   document.getElementById("modal-level").textContent = resource.level || (isPyq ? "Previous Year Question Paper" : "Core Syllabus");
   document.getElementById("modal-summary").textContent = resource.summary;
-  document.getElementById("modal-content").innerHTML = resource.content || `<p>${resource.summary}</p>`;
+
+  let contentHtml = resource.content || `<p>${resource.summary}</p>`;
+  if (resource.file_url) {
+    const rawFileName = resource.file_name || resource.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".pdf";
+    const fileNameDisplay = escapeHtml(rawFileName);
+    const downloadPdfUrl = getDownloadPdfUrl(resource.file_url, rawFileName);
+
+    const pdfCardHtml = `
+      <div class="modal-pdf-attachment-banner" style="background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%); border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 16px 20px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 44px; height: 44px; border-radius: 8px; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);">
+            <svg class="icon icon-md" viewBox="0 0 24 24" style="width: 22px; height: 22px; color: #fff;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px;">Attached Study Document (Cloud Storage)</div>
+            <strong style="font-size: 15px; color: #1e3a8a; display: block; margin-top: 2px;">${fileNameDisplay}</strong>
+            <div style="font-size: 12px; color: #475569; margin-top: 3px;">Verified PDF study material &bull; High-speed cloud CDN delivery</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <a href="${resource.file_url}" target="_blank" rel="noopener noreferrer" class="btn-primary btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; font-weight: 600;">
+            <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            <span>View PDF</span>
+          </a>
+          <a href="${downloadPdfUrl}" download="${fileNameDisplay}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; background: #fff; font-weight: 600;">
+            <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download PDF</span>
+          </a>
+        </div>
+      </div>
+    `;
+    if (!contentHtml.includes(resource.file_url)) {
+      contentHtml = pdfCardHtml + contentHtml;
+    }
+  }
+
+  document.getElementById("modal-content").innerHTML = contentHtml;
 
   modal.style.display = "flex";
   document.body.style.overflow = "hidden";
@@ -1012,8 +1073,23 @@ function downloadModalNotes() {
 }
 
 function downloadResourceText(resourceId) {
-  const res = allResources.find((r) => r.id === resourceId);
+  const res = allResources.find((r) => r.id === resourceId) || (currentModalResource && currentModalResource.id === resourceId ? currentModalResource : null);
   if (!res) return;
+
+  if (res.file_url) {
+    const rawFileName = res.file_name || `${res.title.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}.pdf`;
+    const downloadUrl = getDownloadPdfUrl(res.file_url, rawFileName);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.download = rawFileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast("Downloading attached PDF document...");
+    return;
+  }
 
   const isPyq = isPyqResource(res);
   const tempDiv = document.createElement("div");
@@ -1397,7 +1473,12 @@ async function handleUploadSubmit(e) {
       headers: getAuthHeaders()
     });
 
-    const data = await response.json();
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      data = { message: "Server returned HTTP " + response.status + ": " + (response.statusText || "Request failed") };
+    }
 
     if (response.ok && data.success) {
       const successMsg = data.message || "Your contribution request has been submitted successfully. Please wait for admin approval.";
@@ -1602,7 +1683,7 @@ async function loadUserSubmittedRequests(forceFresh = false) {
                 </div>
                 ${
                   c.file_path
-                    ? `<div style="margin-top: 6px;"><a href="${c.file_path}" target="_blank" style="font-size: 11.5px; color: var(--blue-primary); font-weight: 600; text-decoration: none;">📎 View Attached PDF</a></div>`
+                    ? `<div style="margin-top: 6px;"><a href="${c.file_path}" target="_blank" rel="noopener noreferrer" style="font-size: 11.5px; color: var(--blue-primary); font-weight: 600; text-decoration: none;">📎 View Attached PDF${c.file_name ? ` (${escapeHtml(c.file_name)})` : ""}</a></div>`
                     : ""
                 }
                 ${
@@ -1956,7 +2037,7 @@ function renderAdminContributionsRows(allContribs) {
             </div>
             ${
               c.file_path
-                ? `<div style="margin-top: 5px;"><a href="${c.file_path}" target="_blank" style="font-size: 11.5px; color: var(--blue-primary); font-weight: 600; text-decoration: none;">📎 View Submitted File</a></div>`
+                ? `<div style="margin-top: 5px;"><a href="${c.file_path}" target="_blank" rel="noopener noreferrer" style="font-size: 11.5px; color: var(--blue-primary); font-weight: 600; text-decoration: none;">📎 View Submitted File${c.file_name ? ` (${escapeHtml(c.file_name)})` : ""}</a></div>`
                 : ""
             }
             ${
@@ -2162,7 +2243,9 @@ async function openContributionModal(id) {
     if (contrib.file_path) {
       fileContainer.style.display = "block";
       fileLinkEl.href = contrib.file_path;
-      fileNameEl.textContent = contrib.file_path.split("/").pop();
+      fileLinkEl.setAttribute("target", "_blank");
+      fileLinkEl.setAttribute("rel", "noopener noreferrer");
+      fileNameEl.textContent = contrib.file_name || contrib.file_path.split("/").pop();
     } else {
       fileContainer.style.display = "none";
     }

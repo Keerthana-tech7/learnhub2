@@ -26,6 +26,10 @@ const {
   verifyTransporterConnection
 } = require("./mailer");
 const { QUESTION_PAPERS } = require("./questionPapersData");
+const {
+  isCloudinaryConfigured,
+  uploadPdfToCloudinary
+} = require("./cloudinaryService");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -73,27 +77,36 @@ function verifyAuthToken(token) {
   }
 }
 
-// Ensure uploads folder exists
-const uploadsDir = path.join(__dirname, "public", "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  try {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  } catch (e) {
-    console.warn("Could not create uploads directory:", e.message);
-  }
+// Serverless / Read-only filesystem detector
+function isServerlessOrReadOnly() {
+  return Boolean(
+    process.env.VERCEL ||
+    process.env.VERCEL_ENV ||
+    process.env.NOW_REGION ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.LAMBDA_TASK_ROOT ||
+    (process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_STORAGE) ||
+    (__dirname && __dirname.startsWith("/var/task")) ||
+    (process.cwd && typeof process.cwd === "function" && process.cwd().startsWith("/var/task"))
+  );
 }
 
-// Multer storage for user notes uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    const cleanOriginal = file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e5);
-    cb(null, uniqueSuffix + "-" + cleanOriginal);
+// Multer in-memory storage for user contribution PDF uploads.
+// Crucial for Vercel: Vercel serverless functions have a read-only filesystem (/var/task).
+// In-memory storage buffers files directly in RAM so they can be streamed to Cloudinary without EROFS errors.
+const storage = multer.memoryStorage();
+
+// Ensure local uploads folder only exists in local development (not on Vercel/serverless)
+const uploadsDir = path.join(__dirname, "public", "uploads");
+if (!isServerlessOrReadOnly()) {
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+  } catch (e) {
+    console.warn("Notice: Could not create local uploads directory:", e.message);
   }
-});
+}
 
 // Restrict file uploads to permitted formats, strictly PDF (Requirement 6)
 const upload = multer({
@@ -500,6 +513,8 @@ app.get("/api/health", async (req, res) => {
     res.json({
       status: "healthy",
       database: "Neon PostgreSQL connected",
+      cloudStorage: isCloudinaryConfigured() ? "Cloudinary (Connected)" : (isServerlessOrReadOnly() ? "Cloudinary missing on Vercel" : "Local Development (public/uploads)"),
+      environment: isServerlessOrReadOnly() ? "Vercel / Serverless" : "Local Development",
       timestamp: new Date().toISOString()
     });
   } catch (err) {
@@ -767,7 +782,7 @@ app.post("/api/logout", (req, res) => {
 app.get("/api/resources", async (req, res) => {
   try {
     const rows = await sql`
-      SELECT id, title, subject, reading_time, level, summary, content, file_url, uploader_name, uploader_email, COALESCE(status, 'approved') AS status, created_at
+      SELECT id, title, subject, reading_time, level, summary, content, file_url, file_name, uploader_name, uploader_email, COALESCE(status, 'approved') AS status, created_at
       FROM resources
       WHERE status = 'approved' OR status IS NULL
       ORDER BY created_at DESC
@@ -903,12 +918,60 @@ async function handleResourceContributionSubmission(req, res) {
     console.warn("Notice: Existing resource lookup:", lookupErr.message);
   }
 
-  // 6. Handle PDF file path
+  // 6. Handle PDF file upload via Cloudinary or graceful local fallback
   let filePath = null;
   let originalFileName = null;
+
   if (req.file) {
-    filePath = "/uploads/" + req.file.filename;
     originalFileName = req.file.originalname;
+
+    // Validate that uploaded file is a valid PDF (check %PDF magic header)
+    const isPdfHeader = req.file.buffer && req.file.buffer.length >= 4 && req.file.buffer.slice(0, 4).toString() === "%PDF";
+    if (!isPdfHeader) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file format. The uploaded file is not a valid PDF document."
+      });
+    }
+
+    if (isCloudinaryConfigured()) {
+      try {
+        const uploadResult = await uploadPdfToCloudinary(req.file.buffer, req.file.originalname);
+        filePath = uploadResult.secure_url;
+      } catch (uploadErr) {
+        console.error("Cloudinary upload failure:", uploadErr.message);
+        return res.status(502).json({
+          success: false,
+          message: "Failed to upload PDF to cloud storage: " + (uploadErr.message || "Cloudinary connection error") + ". Please try again or verify your Cloudinary credentials."
+        });
+      }
+    } else if (isServerlessOrReadOnly()) {
+      // In Vercel serverless environment, local disk is read-only (/var/task). Cloud storage is mandatory.
+      console.error("Cloud storage missing on Vercel/serverless deployment.");
+      return res.status(503).json({
+        success: false,
+        message: "Cloud file storage is not configured on Vercel. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET (or CLOUDINARY_URL) to your Vercel Environment Variables to store PDFs permanently."
+      });
+    } else {
+      // Offline / Local development fallback when Cloudinary is not configured in .env
+      try {
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        const cleanOriginal = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e5);
+        const localFileName = uniqueSuffix + "-" + cleanOriginal;
+        fs.writeFileSync(path.join(uploadsDir, localFileName), req.file.buffer);
+        filePath = "/uploads/" + localFileName;
+        console.warn("Notice: Cloudinary is not configured in .env. Saved to local public/uploads/. Configure Cloudinary environment variables for permanent cloud storage.");
+      } catch (localWriteErr) {
+        console.error("Local file storage fallback failed:", localWriteErr.message);
+        return res.status(500).json({
+          success: false,
+          message: "Could not save uploaded PDF: " + localWriteErr.message + ". Cloud storage (Cloudinary) is required for persistent hosting."
+        });
+      }
+    }
   }
 
   try {
@@ -924,6 +987,7 @@ async function handleResourceContributionSubmission(req, res) {
         description,
         contribution_content,
         file_path,
+        file_name,
         status,
         submitted_at
       )
@@ -937,10 +1001,11 @@ async function handleResourceContributionSubmission(req, res) {
         ${cleanDesc},
         ${cleanContent},
         ${filePath},
+        ${originalFileName},
         'Pending',
         CURRENT_TIMESTAMP
       )
-      RETURNING id, user_id, contributor_name, contributor_email, resource_title, category, existing_resource_id, description, contribution_content, file_path, status, submitted_at
+      RETURNING id, user_id, contributor_name, contributor_email, resource_title, category, existing_resource_id, description, contribution_content, file_path, file_name, status, submitted_at
     `;
 
     const newContribution = inserted[0];
@@ -984,6 +1049,7 @@ async function handleResourceContributionSubmission(req, res) {
         existing_resource_title: existingResourceTitle,
         description: cleanDesc,
         file_path: filePath,
+        file_name: originalFileName,
         status: "Pending",
         submitted_at: newContribution.submitted_at
       }
@@ -1022,6 +1088,7 @@ app.get("/api/user/contributions", requireAuth, async (req, res) => {
         c.description,
         c.contribution_content,
         c.file_path,
+        c.file_name,
         c.status,
         c.submitted_at,
         c.reviewed_at,
@@ -1263,6 +1330,7 @@ app.get("/api/admin/contributions", requireAdmin, async (req, res) => {
           c.description,
           c.contribution_content,
           c.file_path,
+          c.file_name,
           c.status,
           c.submitted_at,
           c.reviewed_at,
@@ -1288,6 +1356,7 @@ app.get("/api/admin/contributions", requireAdmin, async (req, res) => {
           c.description,
           c.contribution_content,
           c.file_path,
+          c.file_name,
           c.status,
           c.submitted_at,
           c.reviewed_at,
@@ -1425,7 +1494,7 @@ app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) 
 
     await sql`
       INSERT INTO resources (
-        id, title, subject, reading_time, level, summary, content, file_url, uploader_name, uploader_email, uploader_id, status, created_at
+        id, title, subject, reading_time, level, summary, content, file_url, file_name, uploader_name, uploader_email, uploader_id, status, created_at
       ) VALUES (
         ${resUniqueId},
         ${contrib.resource_title},
@@ -1435,6 +1504,7 @@ app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) 
         ${contrib.description},
         ${publishedContent},
         ${contrib.file_path},
+        ${contrib.file_name || null},
         ${contrib.contributor_name},
         ${contrib.contributor_email},
         ${contrib.user_id},
@@ -1447,7 +1517,8 @@ app.post("/api/admin/contributions/:id/approve", requireAdmin, async (req, res) 
         subject = ${contrib.category || 'General'},
         summary = ${contrib.description},
         content = ${publishedContent},
-        file_url = ${contrib.file_path}
+        file_url = ${contrib.file_path},
+        file_name = ${contrib.file_name || null}
     `;
 
     // 3. Notify contributor by email (Requirement 3)
@@ -1568,14 +1639,14 @@ app.get("/api/contributions/approved", async (req, res) => {
     let rows;
     if (existingResourceId) {
       rows = await sql`
-        SELECT id, contributor_name, resource_title, category, existing_resource_id, description, file_path, submitted_at
+        SELECT id, contributor_name, resource_title, category, existing_resource_id, description, file_path, file_name, submitted_at
         FROM contributions
         WHERE status = 'Approved' AND existing_resource_id = ${existingResourceId}
         ORDER BY submitted_at DESC
       `;
     } else {
       rows = await sql`
-        SELECT id, contributor_name, resource_title, category, existing_resource_id, description, file_path, submitted_at
+        SELECT id, contributor_name, resource_title, category, existing_resource_id, description, file_path, file_name, submitted_at
         FROM contributions
         WHERE status = 'Approved'
         ORDER BY submitted_at DESC
@@ -1597,7 +1668,7 @@ app.get("/api/admin/resources", requireAdmin, async (req, res) => {
   try {
     const resources = await sql`
       SELECT 
-        id, title, subject, reading_time, level, summary, content, file_url, 
+        id, title, subject, reading_time, level, summary, content, file_url, file_name,
         uploader_name, uploader_email, COALESCE(status, 'approved') AS status, created_at
       FROM resources
       ORDER BY 
@@ -1838,7 +1909,7 @@ app.use((req, res) => {
 // Export app for serverless/Vercel
 module.exports = app;
 
-if (process.env.NODE_ENV !== "production") {
+if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`✓ StudyPortal server running at http://localhost:${PORT}`);
   });

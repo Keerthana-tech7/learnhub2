@@ -172,6 +172,7 @@ async function initDB() {
         summary TEXT NOT NULL,
         content TEXT NOT NULL,
         file_url TEXT,
+        file_name TEXT,
         uploader_name TEXT DEFAULT 'Verified Faculty',
         uploader_email TEXT,
         uploader_id INT,
@@ -183,6 +184,9 @@ async function initDB() {
     // Ensure status and contributor tracking columns exist on pre-existing table
     try {
       await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved'`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS file_name TEXT`;
     } catch (e) {}
     try {
       await sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS uploader_email TEXT`;
@@ -264,6 +268,7 @@ async function initDB() {
         description TEXT,
         contribution_content TEXT,
         file_path TEXT,
+        file_name TEXT,
         status TEXT DEFAULT 'Pending',
         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         reviewed_at TIMESTAMP,
@@ -287,6 +292,9 @@ async function initDB() {
     } catch (e) {}
     try {
       await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS file_path TEXT`;
+    } catch (e) {}
+    try {
+      await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS file_name TEXT`;
     } catch (e) {}
     try {
       await sql`ALTER TABLE contributions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pending'`;
@@ -316,7 +324,10 @@ async function initDB() {
 
     console.log("✓ Neon PostgreSQL connected: `users`, `resources`, `contributions` & `admin_notifications` tables verified.");
   } catch (err) {
-    console.error("Database initialization notice:", err.message);
+    console.warn("Database initialization notice:", err.message);
+    if (!process.env.VERCEL) {
+      setTimeout(initDB, 2500);
+    }
   }
 }
 
